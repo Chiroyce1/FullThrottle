@@ -1,0 +1,700 @@
+{
+    "years": [
+        {
+            "year": 2026,
+            "rounds": [
+                {
+                    "round": 0,
+                    "name": "Pre-Season Testing",
+                    "sessions": [
+                        {
+                            "code": "test1_day1",
+                            "label": "TEST1 DAY1"
+                        },
+                        {
+                            "code": "test2_day3",
+                            "label": "TEST2 DAY3"
+                        },
+                        {
+                            "code": "test2_day2",
+                            "label": "TEST2 DAY2"
+                        },
+                        {
+                            "code": "test2_day1",
+                            "label": "TEST2 DAY1"
+                        },
+                        {
+                            "code": "test1_day3",
+                            "label": "TEST1 DAY3"
+                        },
+                        {
+                            "code": "test1_day2",
+                            "label": "TEST1 DAY2"
+                        }
+                    ],
+                    "country": "Bahrain",
+                    "location": "Bahrain",
+                    "circuit": "FORMULA 1 ARAMCO PRE-SEASON TESTING 1 2026",
+                    "date": "2026-02-13"
+                },
+                {
+                    "round": 1,
+                    "name": "Australian Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "fp2",
+                            "label": "Practice 2"
+                        },
+                        {
+                            "code": "fp3",
+                            "label": "Practice 3"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Australia",
+                    "location": "Melbourne",
+                    "circuit": "FORMULA 1 QATAR AIRWAYS AUSTRALIAN GRAND PRIX 2026",
+                    "date": "2026-03-08"
+                },
+                {
+                    "round": 2,
+                    "name": "Chinese Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "sq",
+                            "label": "Sprint Qualifying"
+                        },
+                        {
+                            "code": "s",
+                            "label": "Sprint"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "China",
+                    "location": "Shanghai",
+                    "circuit": "FORMULA 1 HEINEKEN CHINESE GRAND PRIX 2026",
+                    "date": "2026-03-15"
+                },
+                {
+                    "round": 3,
+                    "name": "Japanese Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "fp2",
+                            "label": "Practice 2"
+                        },
+                        {
+                            "code": "fp3",
+                            "label": "Practice 3"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Japan",
+                    "location": "Suzuka",
+                    "circuit": "FORMULA 1 ARAMCO JAPANESE GRAND PRIX 2026",
+                    "date": "2026-03-29"
+                },
+                {
+                    "round": 4,
+                    "name": "Miami Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "sq",
+                            "label": "Sprint Qualifying"
+                        },
+                        {
+                            "code": "s",
+                            "label": "Sprint"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "United States",
+                    "location": "Miami Gardens",
+                    "circuit": "FORMULA 1 CRYPTO.COM MIAMI GRAND PRIX 2026",
+                    "date": "2026-05-03"
+                },
+                {
+                    "round": 5,
+                    "name": "Canadian Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "sq",
+                            "label": "Sprint Qualifying"
+                        },
+                        {
+                            "code": "s",
+                            "label": "Sprint"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Canada",
+                    "location": "Montr\u00e9al",
+                    "circuit": "FORMULA 1 LENOVO GRAND PRIX DU CANADA 2026",
+                    "date": "2026-05-24"
+                }
+            ]
+        },
+        {
+            "year": 2025,
+            "rounds": [
+                {
+                    "round": 0,
+                    "name": "Pre-Season Testing",
+                    "sessions": [
+                        {
+                            "code": "test1_day2",
+                            "label": "TEST1 DAY2"
+                        },
+                        {
+                            "code": "test1_day3",
+                            "label": "TEST1 DAY3"
+                        },
+                        {
+                            "code": "test1_day1",
+                            "label": "TEST1 DAY1"
+                        }
+                    ],
+                    "country": "Bahrain",
+                    "location": "Sakhir",
+                    "circuit": "FORMULA 1 ARAMCO PRE-SEASON TESTING 2025",
+                    "date": "2025-02-28"
+                },
+                {
+                    "round": 1,
+                    "name": "Australian Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Australia",
+                    "location": "Melbourne",
+                    "circuit": "FORMULA 1 LOUIS VUITTON AUSTRALIAN GRAND PRIX 2025",
+                    "date": "2025-03-16"
+                },
+                {
+                    "round": 2,
+                    "name": "Chinese Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "sq",
+                            "label": "Sprint Qualifying"
+                        },
+                        {
+                            "code": "s",
+                            "label": "Sprint"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "China",
+                    "location": "Shanghai",
+                    "circuit": "FORMULA 1 HEINEKEN CHINESE GRAND PRIX 2025",
+                    "date": "2025-03-23"
+                },
+                {
+                    "round": 3,
+                    "name": "Japanese Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Japan",
+                    "location": "Suzuka",
+                    "circuit": "FORMULA 1 LENOVO JAPANESE GRAND PRIX 2025 ",
+                    "date": "2025-04-06"
+                },
+                {
+                    "round": 4,
+                    "name": "Bahrain Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Bahrain",
+                    "location": "Sakhir",
+                    "circuit": "FORMULA 1 GULF AIR BAHRAIN GRAND PRIX 2025",
+                    "date": "2025-04-13"
+                },
+                {
+                    "round": 5,
+                    "name": "Saudi Arabian Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Saudi Arabia",
+                    "location": "Jeddah",
+                    "circuit": "FORMULA 1 STC SAUDI ARABIAN GRAND PRIX 2025",
+                    "date": "2025-04-20"
+                },
+                {
+                    "round": 6,
+                    "name": "Miami Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "sq",
+                            "label": "Sprint Qualifying"
+                        },
+                        {
+                            "code": "s",
+                            "label": "Sprint"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "United States",
+                    "location": "Miami Gardens",
+                    "circuit": "FORMULA 1 CRYPTO.COM MIAMI GRAND PRIX 2025",
+                    "date": "2025-05-04"
+                },
+                {
+                    "round": 7,
+                    "name": "Emilia Romagna Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Italy",
+                    "location": "Imola",
+                    "circuit": "FORMULA 1 AWS GRAN PREMIO DEL MADE IN ITALY E DELL'EMILIA-ROMAGNA 2025",
+                    "date": "2025-05-18"
+                },
+                {
+                    "round": 8,
+                    "name": "Monaco Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Monaco",
+                    "location": "Monaco",
+                    "circuit": "FORMULA 1 TAG HEUER GRAND PRIX DE MONACO 2025",
+                    "date": "2025-05-25"
+                },
+                {
+                    "round": 9,
+                    "name": "Spanish Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Spain",
+                    "location": "Barcelona",
+                    "circuit": "FORMULA 1 ARAMCO GRAN PREMIO DE ESPA\u00d1A 2025",
+                    "date": "2025-06-01"
+                },
+                {
+                    "round": 10,
+                    "name": "Canadian Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Canada",
+                    "location": "Montr\u00e9al",
+                    "circuit": "FORMULA 1 PIRELLI GRAND PRIX DU CANADA 2025",
+                    "date": "2025-06-15"
+                },
+                {
+                    "round": 11,
+                    "name": "Austrian Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Austria",
+                    "location": "Spielberg",
+                    "circuit": "FORMULA 1 MSC CRUISES AUSTRIAN GRAND PRIX 2025",
+                    "date": "2025-06-29"
+                },
+                {
+                    "round": 12,
+                    "name": "British Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "United Kingdom",
+                    "location": "Silverstone",
+                    "circuit": "FORMULA 1 QATAR AIRWAYS BRITISH GRAND PRIX 2025",
+                    "date": "2025-07-06"
+                },
+                {
+                    "round": 13,
+                    "name": "Belgian Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "sq",
+                            "label": "Sprint Qualifying"
+                        },
+                        {
+                            "code": "s",
+                            "label": "Sprint"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Belgium",
+                    "location": "Spa-Francorchamps",
+                    "circuit": "FORMULA 1 MO\u00cbT & CHANDON BELGIAN GRAND PRIX 2025",
+                    "date": "2025-07-27"
+                },
+                {
+                    "round": 14,
+                    "name": "Hungarian Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Hungary",
+                    "location": "Budapest",
+                    "circuit": "FORMULA 1 LENOVO HUNGARIAN GRAND PRIX 2025",
+                    "date": "2025-08-03"
+                },
+                {
+                    "round": 15,
+                    "name": "Dutch Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Netherlands",
+                    "location": "Zandvoort",
+                    "circuit": "FORMULA 1 HEINEKEN DUTCH GRAND PRIX 2025",
+                    "date": "2025-08-31"
+                },
+                {
+                    "round": 16,
+                    "name": "Italian Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Italy",
+                    "location": "Monza",
+                    "circuit": "FORMULA 1 PIRELLI GRAN PREMIO D\u2019ITALIA 2025",
+                    "date": "2025-09-07"
+                },
+                {
+                    "round": 17,
+                    "name": "Azerbaijan Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Azerbaijan",
+                    "location": "Baku",
+                    "circuit": "FORMULA 1 QATAR AIRWAYS AZERBAIJAN GRAND PRIX 2025",
+                    "date": "2025-09-21"
+                },
+                {
+                    "round": 18,
+                    "name": "Singapore Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Singapore",
+                    "location": "Marina Bay",
+                    "circuit": "FORMULA 1 SINGAPORE AIRLINES SINGAPORE GRAND PRIX 2025",
+                    "date": "2025-10-05"
+                },
+                {
+                    "round": 19,
+                    "name": "United States Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "sq",
+                            "label": "Sprint Qualifying"
+                        },
+                        {
+                            "code": "s",
+                            "label": "Sprint"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "United States",
+                    "location": "Austin",
+                    "circuit": "FORMULA 1 MSC CRUISES UNITED STATES GRAND PRIX 2025",
+                    "date": "2025-10-19"
+                },
+                {
+                    "round": 20,
+                    "name": "Mexico City Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Mexico",
+                    "location": "Mexico City",
+                    "circuit": "FORMULA 1 GRAN PREMIO DE LA CIUDAD DE M\u00c9XICO 2025",
+                    "date": "2025-10-26"
+                },
+                {
+                    "round": 21,
+                    "name": "S\u00e3o Paulo Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "sq",
+                            "label": "Sprint Qualifying"
+                        },
+                        {
+                            "code": "s",
+                            "label": "Sprint"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Brazil",
+                    "location": "S\u00e3o Paulo",
+                    "circuit": "FORMULA 1 MSC CRUISES GRANDE PR\u00caMIO DE S\u00c3O PAULO 2025",
+                    "date": "2025-11-09"
+                },
+                {
+                    "round": 22,
+                    "name": "Las Vegas Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "United States",
+                    "location": "Las Vegas",
+                    "circuit": "FORMULA 1 HEINEKEN LAS VEGAS GRAND PRIX 2025",
+                    "date": "2025-11-22"
+                },
+                {
+                    "round": 23,
+                    "name": "Qatar Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "sq",
+                            "label": "Sprint Qualifying"
+                        },
+                        {
+                            "code": "s",
+                            "label": "Sprint"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Qatar",
+                    "location": "Lusail",
+                    "circuit": "FORMULA 1 QATAR AIRWAYS QATAR GRAND PRIX 2025",
+                    "date": "2025-11-30"
+                },
+                {
+                    "round": 24,
+                    "name": "Abu Dhabi Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "United Arab Emirates",
+                    "location": "Yas Island",
+                    "circuit": "FORMULA 1 ETIHAD AIRWAYS ABU DHABI GRAND PRIX 2025",
+                    "date": "2025-12-07"
+                }
+            ]
+        }
+    ]
+}
