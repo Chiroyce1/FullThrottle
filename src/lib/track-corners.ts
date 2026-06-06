@@ -32,6 +32,7 @@ export interface TrackData {
 const LOCATION_OVERRIDES: Record<string, string> = {
 	"miami gardens": "miami",
 	bahrain: "sakhir",
+	"monte carlo": "monaco",
 };
 
 function locationToFilename(location: string): string {

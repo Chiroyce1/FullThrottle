@@ -186,6 +186,32 @@
                     "location": "Montr\u00e9al",
                     "circuit": "FORMULA 1 LENOVO GRAND PRIX DU CANADA 2026",
                     "date": "2026-05-24"
+                },
+                {
+                    "round": 6,
+                    "name": "Monaco Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "fp2",
+                            "label": "Practice 2"
+                        },
+                        {
+                            "code": "fp3",
+                            "label": "Practice 3"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        }
+                    ],
+                    "country": "Monaco",
+                    "location": "Monte Carlo",
+                    "circuit": "FORMULA 1 LOUIS VUITTON GRAND PRIX DE MONACO 2026",
+                    "date": "2026-06-07"
                 }
             ]
         },
