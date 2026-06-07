@@ -206,6 +206,10 @@
                         {
                             "code": "q",
                             "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
                         }
                     ],
                     "country": "Monaco",
