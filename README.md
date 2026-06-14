@@ -14,7 +14,7 @@
 - **Full Session Replays:** Includes leaderboards, maps, and replay for Race, Qualifying, Free Practice, and a few Pre-season testing sessions.
 - **Head to Head Comparisons:** Compare different drivers for a session across laps, compounds, and even years.
 
-## 🏗️ Architecture
+## Architecture
 
 FullThrottle is built edge-first. The goal was to efficiently get the telemetry to end users, and let the browser do all the work.
 
@@ -26,7 +26,7 @@ FullThrottle is built edge-first. The goal was to efficiently get the telemetry 
   - The frontend requests these `.parquet` files from Huggingface's CDN, with each file being a few megabytes in size.
   - The client parses the data in-browser using `hyparquet`. So once a session is loaded, users can switch between drivers and laps almost instantly.
 
-## 🛠️ Development
+## Development
 
 ### Prerequisites
 
@@ -74,15 +74,13 @@ To run the telemetry algorithm tests (which execute directly against the downloa
 npm run test
 ```
 
-## 📊 Analytics
+## Analytics
 
 FullThrottle uses [PostHog](https://posthog.com/) for anonymized web analytics and user feedback during the early development/testing period, alongside [Cloudflare](https://cloudflare.com/) for web hosting and analytics.
 
-## 📄 License
+## License, Contibuting and AI
 
 This project is licensed under the AGPLv3 License - see the [LICENSE](LICENSE) file for more information.
-
-## 🤝 Contributing & AI Use
 
 Consider this a starting point for the project. I expect to refactor a lot of it and I'm hoping to get contributions that will help improve the overall code quality and fix bugs that are definitely still present.
 
