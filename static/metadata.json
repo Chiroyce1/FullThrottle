@@ -246,6 +246,32 @@
                     "location": "Barcelona",
                     "circuit": "FORMULA 1 MSC CRUISES GRAN PREMIO DE BARCELONA-CATALUNYA 2026",
                     "date": "2026-06-14"
+                },
+                {
+                    "round": 8,
+                    "name": "Austrian Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "fp2",
+                            "label": "Practice 2"
+                        },
+                        {
+                            "code": "fp3",
+                            "label": "Practice 3"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        }
+                    ],
+                    "country": "Austria",
+                    "location": "Spielberg",
+                    "circuit": "FORMULA 1 LENOVO AUSTRIAN GRAND PRIX 2026",
+                    "date": "2026-06-28"
                 }
             ]
         },
