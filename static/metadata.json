@@ -266,12 +266,30 @@
                         {
                             "code": "q",
                             "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
                         }
                     ],
                     "country": "Austria",
                     "location": "Spielberg",
                     "circuit": "FORMULA 1 LENOVO AUSTRIAN GRAND PRIX 2026",
                     "date": "2026-06-28"
+                },
+                {
+                    "round": 9,
+                    "name": "British Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        }
+                    ],
+                    "country": "United Kingdom",
+                    "location": "Silverstone",
+                    "circuit": "FORMULA 1 PIRELLI BRITISH GRAND PRIX 2026",
+                    "date": "2026-07-05"
                 }
             ]
         },
