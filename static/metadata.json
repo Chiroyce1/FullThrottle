@@ -284,12 +284,88 @@
                         {
                             "code": "fp1",
                             "label": "Practice 1"
+                        },
+                        {
+                            "code": "sq",
+                            "label": "Sprint Qualifying"
+                        },
+                        {
+                            "code": "s",
+                            "label": "Sprint"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
                         }
                     ],
                     "country": "United Kingdom",
                     "location": "Silverstone",
                     "circuit": "FORMULA 1 PIRELLI BRITISH GRAND PRIX 2026",
                     "date": "2026-07-05"
+                },
+                {
+                    "round": 10,
+                    "name": "Belgian Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "fp2",
+                            "label": "Practice 2"
+                        },
+                        {
+                            "code": "fp3",
+                            "label": "Practice 3"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Belgium",
+                    "location": "Spa-Francorchamps",
+                    "circuit": "FORMULA 1 MO\u00cbT & CHANDON BELGIAN GRAND PRIX 2026",
+                    "date": "2026-07-19"
+                },
+                {
+                    "round": 11,
+                    "name": "Hungarian Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "fp2",
+                            "label": "Practice 2"
+                        },
+                        {
+                            "code": "fp3",
+                            "label": "Practice 3"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Hungary",
+                    "location": "Budapest",
+                    "circuit": "FORMULA 1 AWS HUNGARIAN GRAND PRIX 2026",
+                    "date": "2026-07-26"
                 }
             ]
         },

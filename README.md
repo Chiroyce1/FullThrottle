@@ -43,7 +43,21 @@ FullThrottle is built edge-first. The goal was to efficiently get the telemetry 
    cd FullThrottle
    ```
 
-2. Download the telemetry data from Hugging Face
+2. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+3. Start the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+4. Open your browser and navigate to `http://localhost:5173`.
+
+5. _Optional:_ To have the telemetry data load instantly, you can download the .parquet files from Hugging Face and place them in the `/static/data` directory.
 
    > All the pre-processed .parquet telemetry and .json metadata files are on [Hugging Face](https://huggingface.co/datasets/fullthrottlef1/fullthrottle) - 2025 and 2026 data is currently available, more to come soon. The download might take a while.
 
@@ -51,20 +65,6 @@ FullThrottle is built edge-first. The goal was to efficiently get the telemetry 
    python3 -m pip install huggingface_hub # global install of the cli
    hf download fullthrottlef1/fullthrottle --repo-type dataset --local-dir ./static/data
    ```
-
-3. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-4. Start the development server:
-
-   ```bash
-   npm run dev
-   ```
-
-5. Open your browser and navigate to `http://localhost:5173`.
 
 ### Testing
 
