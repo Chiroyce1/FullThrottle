@@ -25,8 +25,9 @@
 		LeaderboardEntry,
 	} from "$lib/types";
 	import { deriveSessionMode, formatSessionTime } from "$lib/utils";
-	import { Home } from "lucide-svelte";
+	import { Home, AlertTriangle } from "lucide-svelte";
 	import { generateJsonUrl, generateParquetUrl } from "$lib";
+	import { getTelemetryIssue } from "$lib/telemetry-issues";
 
 	const engine = new TelemetryEngine();
 	let preparedSessionKey = "";
@@ -124,6 +125,9 @@
 		deriveSessionMode(engine.metadata?.session_info?.type, page.params.session),
 	);
 	const isQualifying = $derived(sessionMode === "qualifying");
+	const telemetryIssue = $derived(
+		getTelemetryIssue(page.params.year, page.params.round, page.params.session),
+	);
 
 	// Convert current frame into a format suitable for the TrackMap component
 	const activeDots = $derived.by(() =>
@@ -239,6 +243,22 @@
 	class="flex min-h-screen flex-col bg-background p-3 text-foreground selection:bg-red-900/40 selection:text-foreground sm:p-4"
 	style="font-family: 'IBM Plex Sans', sans-serif;"
 >
+	{#if telemetryIssue}
+		<div
+			class="mb-3 flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-600 dark:text-amber-400 shadow-xs"
+		>
+			<AlertTriangle class="h-5 w-5 shrink-0 text-amber-500" />
+			<div
+				class="flex flex-col text-xs sm:flex-row sm:items-center sm:gap-2 sm:text-sm"
+			>
+				<span
+					>{telemetryIssue.message ||
+						`Telemetry data has known issues for ${telemetryIssue.name || "this session"}.`}</span
+				>
+			</div>
+		</div>
+	{/if}
+
 	<!-- TOP SECTION -->
 	<div class="mb-3 flex flex-col gap-3">
 		{#if engine.totalRows > 0}
