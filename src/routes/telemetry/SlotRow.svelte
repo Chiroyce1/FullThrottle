@@ -23,6 +23,7 @@
 		years: YearEntry[];
 		laps: LapTimingEntry[];
 		color: string;
+		isLoaded: boolean;
 		isLast: boolean;
 		isOnly: boolean;
 		onremove: () => void;
@@ -34,6 +35,7 @@
 		years,
 		laps,
 		color,
+		isLoaded,
 		isLast,
 		isOnly,
 		onremove,
@@ -143,12 +145,13 @@
 </script>
 
 <div
-	class={`grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 px-3 py-3 sm:px-4 sm:py-2.5${!isLast ? " border-b border-divider" : ""}`}
+	class={`relative grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 px-3 py-3 sm:px-4 sm:py-2.5 transition-all duration-200${!isLast ? " border-b border-divider" : ""}${isLoaded ? "" : " opacity-75"}`}
+	style={isLoaded ? `border-left: 3px solid ${color}` : "border-left: 3px solid transparent"}
 >
 	<div class="col-span-2 sm:col-span-1 flex items-center gap-2">
 	<!-- Slot letter badge -->
 		<span
-			class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded font-mono text-[10px] font-black"
+			class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded font-mono text-[10px] font-black transition-all duration-200"
 			style="background:{color}18; color:{color}; border: 1px solid {color}35"
 			>{slotBadge(sid)}</span
 		>
@@ -156,7 +159,7 @@
 		{#if slot.hasLoaded}
 			<span class="font-mono text-[9px] text-green-500 uppercase">✓ Loaded</span>
 		{:else if slotNeedsReload}
-			<span class="font-mono text-[9px] text-amber-400 uppercase"
+			<span class="font-mono text-[9px] text-amber-400 uppercase animate-pulse"
 				>Load data again</span
 			>
 		{:else if slot.loadError}
