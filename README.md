@@ -22,9 +22,57 @@ FullThrottle is built edge-first. The goal was to efficiently get the telemetry 
 - **Visualizations:** [D3.js](https://d3js.org/) for all the telemetry visualizations
 - **Data Pipeline:**
   - Raw telemetry is sourced using [FastF1](https://github.com/theOehrly/Fast-F1) in Python, then pre-processed into compressed Parquet format.
-  - This telemetry is processed and uploaded to a Huggingface dataset manually for now. This will be automated and moved to Cloudflare R2 in the future.
-  - The frontend requests these `.parquet` files from Huggingface's CDN, with each file being a few megabytes in size.
-  - The client parses the data in-browser using `hyparquet`. So once a session is loaded, users can switch between drivers and laps almost instantly.
+  - Parquet files and session metadata are uploaded to a [Hugging Face dataset](https://huggingface.co/datasets/fullthrottlef1/fullthrottle), which acts as the CDN origin.
+  - The frontend requests `.parquet` files from Hugging Face's CDN. Each file is a few MB.
+  - The client parses the data in-browser using `hyparquet`. Once a session is loaded, switching between drivers and laps is near-instant.
+
+## CI/CD & Data Pipeline
+
+The ingest pipeline runs on GitHub Actions and has three regions that need to stay in sync — which is the main source of complexity.
+
+### The three regions
+
+| Region | What lives there | Who writes it |
+|---|---|---|
+| **GitHub repo** (`static/metadata.json`) | The session index the frontend loads on startup | CI auto-commits after every ingest run |
+| **Hugging Face dataset** | All `.parquet` telemetry + `.json` session metadata files | CI uploads only new files each run |
+| **Local dev** (`static/data/`) | Downloaded copy of HF data for offline development | Developer, manually via `hf download` |
+
+`static/data/` is in `.gitignore` — it is never committed. The repo only tracks `metadata.json`.
+
+### How a run works
+
+The workflow (`.github/workflows/telemetry.yml`) runs hourly and has three steps:
+
+1. **`ingest.py 2026`** — Fetches the FastF1 event schedule, skips sessions already in `metadata.json` or not yet finished, downloads new telemetry, and writes Parquet + JSON files into `static/data/`.
+2. **`build_metadata.py`** — Scans `static/data/` for new session files and rebuilds `metadata.json`. Critically, it **seeds from the existing committed `metadata.json` first**, so historical rounds are never wiped even when the CI runner has an empty `static/data/` directory.
+3. **`upload.py`** — Walks `static/data/` and uploads any files not already present on Hugging Face. Skips existing files.
+
+The ingest step has `continue-on-error: true`. If FastF1's API is flaky (common during a live race weekend), the metadata rebuild and HF upload still run, and the next hourly run will retry the ingest.
+
+### Why `metadata.json` is committed to the repo
+
+The frontend fetches `metadata.json` from the same origin as the app (not HF), so it's fast and doesn't need a cold-start HF request. It also serves as the source of truth for what sessions have already been processed, which lets `ingest.py` skip re-downloading sessions on a fresh CI runner that has no local data.
+
+### Local development with data
+
+For local dev with real telemetry data:
+
+```bash
+# Download all processed data from Hugging Face into static/data/
+python3 -m pip install huggingface_hub
+hf download fullthrottlef1/fullthrottle --repo-type dataset --local-dir ./static/data
+```
+
+To ingest a specific new session locally (e.g. round 13 qualifying):
+
+```bash
+cd ingest
+python ingest.py 2026 --round 13 --session Qualifying
+python build_metadata.py
+```
+
+This will write to `static/data/` and update `static/metadata.json` locally. Commit only `metadata.json` if you want to ship a session that CI hasn't picked up yet.
 
 ## Development
 
