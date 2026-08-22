@@ -33,3 +33,4 @@ TODO.md
 
 __pycache__/
 data_hidden/
+.fastf1_cache/

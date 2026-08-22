@@ -1,10 +1,9 @@
 name: Ingest Telemetry
 
 on:
-  schedule:
-    # Run every hour at minute 0
-    - cron: "0 * * * *"
-  workflow_dispatch: # Allows manual triggers
+  workflow_dispatch: # Manual triggers (or self-hosted runners)
+  # Note: Scheduled runs on GitHub-hosted runners are disabled because F1's
+  # live timing API blocks datacenter/cloud IP ranges.
 
 jobs:
   run-pipeline:
@@ -20,14 +19,15 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install fastf1 pandas pyarrow huggingface_hub python-dotenv
+        run: pip install fastf1==3.8.1 pandas pyarrow huggingface_hub python-dotenv
 
       - name: Ingest new sessions from FastF1
         continue-on-error: true
         working-directory: ingest
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_WRITE_KEY }}
           HF_REPO: "${{ secrets.HF_REPO }}"
+          FASTF1_CACHE: /tmp/fastf1_cache
         run: python ingest.py 2026
 
       - name: Rebuild metadata.json
@@ -37,12 +37,12 @@ jobs:
       - name: Upload new files to Hugging Face
         working-directory: ingest
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_WRITE_KEY }}
           HF_REPO: "${{ secrets.HF_REPO }}"
         run: python upload.py
 
       - name: Commit updated metadata.json
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: "chore: auto-update telemetry metadata.json"
           file_pattern: "static/metadata.json"
