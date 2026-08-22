@@ -22,14 +22,24 @@ jobs:
       - name: Install dependencies
         run: pip install fastf1 pandas pyarrow huggingface_hub python-dotenv
 
-      - name: Ingest data and upload to huggingface
+      - name: Ingest new sessions from FastF1
+        continue-on-error: true
+        working-directory: ingest
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_REPO: "${{ secrets.HF_REPO }}"
-        run: |
-          python ingest/ingest.py 2026
-          python ingest/build_metadata.py
-          python ingest/upload.py
+        run: python ingest.py 2026
+
+      - name: Rebuild metadata.json
+        working-directory: ingest
+        run: python build_metadata.py
+
+      - name: Upload new files to Hugging Face
+        working-directory: ingest
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_REPO: "${{ secrets.HF_REPO }}"
+        run: python upload.py
 
       - name: Commit updated metadata.json
         uses: stefanzweifel/git-auto-commit-action@v5

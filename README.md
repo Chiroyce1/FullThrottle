@@ -22,9 +22,22 @@ FullThrottle is built edge-first. The goal was to efficiently get the telemetry 
 - **Visualizations:** [D3.js](https://d3js.org/) for all the telemetry visualizations
 - **Data Pipeline:**
   - Raw telemetry is sourced using [FastF1](https://github.com/theOehrly/Fast-F1) in Python, then pre-processed into compressed Parquet format.
-  - This telemetry is processed and uploaded to a Huggingface dataset manually for now. This will be automated and moved to Cloudflare R2 in the future.
-  - The frontend requests these `.parquet` files from Huggingface's CDN, with each file being a few megabytes in size.
-  - The client parses the data in-browser using `hyparquet`. So once a session is loaded, users can switch between drivers and laps almost instantly.
+  - Parquet files and session metadata are uploaded to a [Hugging Face dataset](https://huggingface.co/datasets/fullthrottlef1/fullthrottle), which acts as the CDN origin.
+  - The frontend requests `.parquet` files from Hugging Face's CDN. Each file is a few MB.
+  - The client parses the data in-browser using `hyparquet`. Once a session is loaded, switching between drivers and laps is near-instant.
+
+## Data Pipeline
+
+A GitHub Actions cron job (`.github/workflows/telemetry.yml`) runs hourly to ingest new sessions from FastF1, rebuild `metadata.json`, and upload new Parquet files to Hugging Face. Three locations need to stay in sync:
+
+| Region | What lives there | Who writes it |
+| --- | --- | --- |
+| **GitHub repo** (`static/metadata.json`) | Session index loaded by the frontend | Cron auto-commits after each run |
+| **Hugging Face dataset** | All `.parquet` + `.json` session files | Cron uploads only new files |
+| **Local dev** (`static/data/`) | Downloaded copy for offline development | Developer, via `hf download` |
+
+`static/data/` is gitignored. `metadata.json` is committed to the repo so `ingest.py` can skip already-processed sessions on a fresh runner with no local data.
+
 
 ## Development
 

@@ -357,6 +357,10 @@
                             "code": "q",
                             "label": "Qualifying"
                         },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
                     ],
                     "country": "Hungary",
                     "location": "Budapest",

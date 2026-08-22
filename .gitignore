@@ -32,3 +32,4 @@ tracks/*
 TODO.md
 
 __pycache__/
+data_hidden/

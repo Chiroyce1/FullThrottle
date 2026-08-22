@@ -41,7 +41,30 @@ def main():
         'r': 6
     }
 
+    output_path = os.path.join(base_dir, 'metadata.json')
     years_map = {}
+
+    # Seed from existing metadata.json so the CI runner (which has no local data/)
+    # doesn't wipe historical rounds on every run.
+    if os.path.exists(output_path):
+        try:
+            with open(output_path, 'r') as f:
+                existing = json.load(f)
+            for y in existing.get('years', []):
+                years_map[int(y['year'])] = y.get('rounds', [])
+            print(f"Seeded from existing metadata.json ({len(years_map)} years).")
+        except Exception as e:
+            print(f"Warning: could not seed from existing metadata.json: {e}")
+
+    if not os.path.exists(data_dir):
+        print(f"No data dir found — writing seeded metadata only.")
+        years_list = [{'year': yr, 'rounds': rounds} for yr, rounds in sorted(years_map.items(), reverse=True)]
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        with open(output_path, 'w') as f:
+            json.dump({'years': years_list}, f, indent=4)
+        total_sessions = sum(len(r['sessions']) for yl in years_list for r in yl['rounds'])
+        print(f"Generated {output_path}: {len(years_map)} years, {len([r for yl in years_list for r in yl['rounds']])} rounds, {total_sessions} sessions")
+        return
 
     for year_dir in os.listdir(data_dir):
         if not re.match(r'^\d{4}$', year_dir):
@@ -51,15 +74,26 @@ def main():
         if not os.path.isdir(year_path):
             continue
             
+        year_int = int(year_dir)
         round_map = {}
+
+        for r in years_map.get(year_int, []):
+            key = 'test' if r['round'] == 0 else str(r['round'])
+            round_map[key] = {
+                'name': r.get('name'),
+                'country': r.get('country'),
+                'location': r.get('location'),
+                'circuit': r.get('circuit'),
+                'date': r.get('date'),
+                'sessions': {s['code']: s['label'] for s in r.get('sessions', [])}
+            }
         
         for filename in os.listdir(year_path):
             if not filename.endswith('.json'):
                 continue
                 
             filepath = os.path.join(year_path, filename)
-            
-            # Try to load the JSON metadata - used for both round name enrichment and testing sessions
+
             meta = None
             try:
                 with open(filepath, 'r') as f:
@@ -67,47 +101,31 @@ def main():
             except Exception:
                 pass
 
-            # Match standard rounds: f1_2025_rd1_r.json
             match = re.match(r'^f1_(\d{4})_rd(\d+)_(\w+)\.json$', filename)
             if match:
                 year = match.group(1)
                 round_num = match.group(2)
                 session_code = match.group(3)
-                
+
                 if round_num not in round_map:
                     session_info = meta.get('session_info', {}) if meta else {}
-                    # Use enriched fields from the newer JSON spec
-                    name = session_info.get('name', f'Round {round_num}')
-                    country = session_info.get('country')
-                    location = session_info.get('location')
-                    circuit = session_info.get('circuit')
-                    date = session_info.get('date')
-                    
                     round_map[round_num] = {
-                        'name': name,
-                        'country': country,
-                        'location': location,
-                        'circuit': circuit,
-                        'date': date,
+                        'name': session_info.get('name', f'Round {round_num}'),
+                        'country': session_info.get('country'),
+                        'location': session_info.get('location'),
+                        'circuit': session_info.get('circuit'),
+                        'date': session_info.get('date'),
                         'sessions': {}
                     }
-                else:
-                    # If we already have the round, but the current file has richer metadata, update
-                    if meta:
-                        session_info = meta.get('session_info', {})
-                        if session_info.get('country') and not round_map[round_num].get('country'):
-                            round_map[round_num]['country'] = session_info.get('country')
-                        if session_info.get('location') and not round_map[round_num].get('location'):
-                            round_map[round_num]['location'] = session_info.get('location')
-                        if session_info.get('circuit') and not round_map[round_num].get('circuit'):
-                            round_map[round_num]['circuit'] = session_info.get('circuit')
-                        if session_info.get('date') and not round_map[round_num].get('date'):
-                            round_map[round_num]['date'] = session_info.get('date')
-                
+                elif meta:
+                    session_info = meta.get('session_info', {})
+                    for field in ('country', 'location', 'circuit', 'date'):
+                        if session_info.get(field) and not round_map[round_num].get(field):
+                            round_map[round_num][field] = session_info[field]
+
                 round_map[round_num]['sessions'][session_code] = parse_session_label(session_code)
                 continue
 
-            # Match test sessions: f1_2025_test1_day1.json
             test_match = re.match(r'^f1_(\d{4})_(test\d+_day\d+)\.json$', filename)
             if test_match:
                 year = test_match.group(1)
@@ -131,24 +149,17 @@ def main():
         rounds = []
         for key, data in round_map.items():
             sessions_list = [{'code': code, 'label': label} for code, label in data['sessions'].items()]
-            # Sort sessions by canonical order
             sessions_list.sort(key=lambda s: session_order.get(s['code'].lower(), 99))
-            
+
             round_entry = {
                 'round': 0 if key == 'test' else int(key),
                 'name': data['name'],
                 'sessions': sessions_list
             }
-            # Include enriched fields only if they have non-None values
-            if data.get('country'):
-                round_entry['country'] = data['country']
-            if data.get('location'):
-                round_entry['location'] = data['location']
-            if data.get('circuit'):
-                round_entry['circuit'] = data['circuit']
-            if data.get('date'):
-                round_entry['date'] = data['date']
-                
+            for field in ('country', 'location', 'circuit', 'date'):
+                if data.get(field):
+                    round_entry[field] = data[field]
+
             rounds.append(round_entry)
             
         rounds.sort(key=lambda x: x['round'])
@@ -163,9 +174,7 @@ def main():
             'rounds': rounds
         })
         
-    output_path = os.path.join(base_dir, 'metadata.json')
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    
     with open(output_path, 'w') as f:
         json.dump({'years': years_list}, f, indent=4)
         
