@@ -25,7 +25,11 @@ vite.config.ts.timestamp-*
 /worker-configuration.d.ts
 
 
-data
-data/*
+static/data/*
 tracks/*
 .parquet
+
+TODO.md
+
+__pycache__/
+data_hidden/
