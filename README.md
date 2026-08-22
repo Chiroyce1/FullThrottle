@@ -28,15 +28,28 @@ FullThrottle is built edge-first. The goal was to efficiently get the telemetry 
 
 ## Data Pipeline
 
-A GitHub Actions cron job (`.github/workflows/telemetry.yml`) runs hourly to ingest new sessions from FastF1, rebuild `metadata.json`, and upload new Parquet files to Hugging Face. Three locations need to stay in sync:
+Telemetry ingestion is run locally via the scripts in `ingest/`. F1's live timing servers block cloud/datacenter IP ranges (including GitHub-hosted Actions runners), so automated cron runs in the cloud return empty data. 
+
+### Running Ingest
+
+To pull recent sessions, process Parquet files, rebuild metadata, and upload to Hugging Face:
+
+```bash
+cd ingest
+python3 ingest.py 2026
+python3 build_metadata.py
+python3 upload.py
+```
+
+### Data Storage
 
 | Region | What lives there | Who writes it |
 | --- | --- | --- |
-| **GitHub repo** (`static/metadata.json`) | Session index loaded by the frontend | Cron auto-commits after each run |
-| **Hugging Face dataset** | All `.parquet` + `.json` session files | Cron uploads only new files |
+| **GitHub repo** (`static/metadata.json`) | Session index loaded by the frontend | Committed manually after ingest |
+| **Hugging Face dataset** | All `.parquet` + `.json` session files | Uploaded via `upload.py` |
 | **Local dev** (`static/data/`) | Downloaded copy for offline development | Developer, via `hf download` |
 
-`static/data/` is gitignored. `metadata.json` is committed to the repo so `ingest.py` can skip already-processed sessions on a fresh runner with no local data.
+`static/data/` is gitignored. The repo only tracks `metadata.json`.
 
 
 ## Development

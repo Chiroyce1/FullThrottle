@@ -35,8 +35,9 @@ def main():
     allowed_sessions = set(args.session_names or [])
     output_dirs = args.output_dirs or [os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'data')]
 
-    fastf1.Cache._default_cache_enabled = True
-    fastf1.Cache.set_disabled()
+    cache_dir = os.environ.get('FASTF1_CACHE', os.path.join(os.path.dirname(os.path.dirname(__file__)), '.fastf1_cache'))
+    os.makedirs(cache_dir, exist_ok=True)
+    fastf1.Cache.enable_cache(cache_dir)
     events = fastf1.get_event_schedule(year)
 
     test_number = 1

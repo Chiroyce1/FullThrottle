@@ -30,8 +30,6 @@ ESSENTIAL_COLUMNS = [
 
 
 def archive_data(year, r_type, round_id, session_id, day=1, output_dirs=None):
-    fastf1.Cache._default_cache_enabled = True
-    fastf1.Cache.set_disabled()
     # 1. Load Session
     if r_type == 'TESTING':
         session = fastf1.get_testing_session(year, round_id, day)
