@@ -41,7 +41,37 @@ def main():
         'r': 6
     }
 
+    output_path = os.path.join(base_dir, 'metadata.json')
     years_map = {}
+    
+    # Pre-populate with existing metadata so CI/CD doesn't wipe history.
+    # This is the primary mechanism that preserves historical rounds/sessions
+    # that aren't present in the local data dir (e.g. on a fresh CI runner).
+    if os.path.exists(output_path):
+        try:
+            with open(output_path, 'r') as f:
+                existing = json.load(f)
+            for y in existing.get('years', []):
+                years_map[int(y['year'])] = y.get('rounds', [])
+            print(f"Seeded metadata from existing {output_path} ({len(years_map)} years).")
+        except Exception as e:
+            print(f"Warning: could not seed from existing metadata.json: {e}")
+
+    # If there's no local data dir, there's nothing new to scan.
+    # We'll still write out whatever we seeded from existing metadata.
+    if not os.path.exists(data_dir):
+        print(f"No local data directory found at {data_dir} — writing seeded metadata only.")
+        # Jump straight to writing output
+        years_list = []
+        for yr, rounds in sorted(years_map.items(), reverse=True):
+            years_list.append({'year': yr, 'rounds': rounds})
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        with open(output_path, 'w') as f:
+            json.dump({'years': years_list}, f, indent=4)
+        total_sessions = sum(len(r['sessions']) for yl in years_list for r in yl['rounds'])
+        total_rounds = sum(len(yl['rounds']) for yl in years_list)
+        print(f"Generated {output_path}: {len(years_list)} years, {total_rounds} rounds, {total_sessions} sessions")
+        return
 
     for year_dir in os.listdir(data_dir):
         if not re.match(r'^\d{4}$', year_dir):
@@ -51,7 +81,20 @@ def main():
         if not os.path.isdir(year_path):
             continue
             
+        year_int = int(year_dir)
         round_map = {}
+        
+        # Seed round_map with existing rounds for this year
+        for r in years_map.get(year_int, []):
+            key = 'test' if r['round'] == 0 else str(r['round'])
+            round_map[key] = {
+                'name': r.get('name'),
+                'country': r.get('country'),
+                'location': r.get('location'),
+                'circuit': r.get('circuit'),
+                'date': r.get('date'),
+                'sessions': {s['code']: s['label'] for s in r.get('sessions', [])}
+            }
         
         for filename in os.listdir(year_path):
             if not filename.endswith('.json'):
@@ -163,9 +206,7 @@ def main():
             'rounds': rounds
         })
         
-    output_path = os.path.join(base_dir, 'metadata.json')
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    
     with open(output_path, 'w') as f:
         json.dump({'years': years_list}, f, indent=4)
         
