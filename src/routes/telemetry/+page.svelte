@@ -20,7 +20,7 @@
 	import TelemetryEmptyState from "./TelemetryEmptyState.svelte";
 	import { loadTrackCorners, type TrackCorner } from "$lib/track-corners";
 
-	import { SlotManager, type YearEntry } from "./slot-manager.svelte";
+	import { TelemetryState, type YearEntry } from "./state";
 	import { rowAtDist, buildSpeedDeltaSegmentsN } from "./telemetry-utils";
 
 	let years = $state<YearEntry[]>([]);
@@ -36,24 +36,24 @@
 				years = d.years;
 			});
 
-		const onPageHide = () => sm.dispose();
+		const onPageHide = () => tm.dispose();
 		window.addEventListener("pagehide", onPageHide);
 		return () => {
 			window.removeEventListener("pagehide", onPageHide);
 		};
 	});
 
-	const sm = new SlotManager(() => years);
-	onDestroy(() => sm.dispose());
+	const tm = new TelemetryState(() => years);
+	onDestroy(() => tm.dispose());
 
 	let xDomain = $state<[number, number] | null>(null);
 	let hoverDist = $state<number | null>(null);
 
 	function loadData() {
-		if (!sm.canLoadData) return;
+		if (!tm.canLoadData) return;
 		hoverDist = null;
 		xDomain = null;
-		sm.load(settings.dataFrequency);
+		tm.load(settings.dataFrequency);
 	}
 
 	let trackCorners = $state<TrackCorner[]>([]);
@@ -61,7 +61,7 @@
 	let showCorners = $state(true);
 
 	$effect(() => {
-		const rd = sm.roundData(0);
+		const rd = tm.roundData(0);
 		const location = rd?.location || "";
 		if (location === lastCornerLocation) return;
 		lastCornerLocation = location;
@@ -77,11 +77,11 @@
 	});
 
 	const allSeries = $derived<ChartSeries[]>(
-		sm.slots
+		tm.slots
 			.map((_, sid) => ({
-				data: sm.lapData(sid),
-				color: sm.color(sid),
-				label: sm.driverTla(sid),
+				data: tm.lapData(sid),
+				color: tm.color(sid),
+				label: tm.driverTla(sid),
 			}))
 			.filter((s) => s.data.length > 0),
 	);
@@ -109,8 +109,8 @@
 	});
 
 	const speedDeltaSegments = $derived.by(() => {
-		const datasets = sm.slots
-			.map((_, sid) => ({ data: sm.lapData(sid), color: sm.color(sid) }))
+		const datasets = tm.slots
+			.map((_, sid) => ({ data: tm.lapData(sid), color: tm.color(sid) }))
 			.filter((d) => d.data.length >= 2);
 
 		if (datasets.length < 2) return [];
@@ -118,17 +118,17 @@
 	});
 
 	const hudRows = $derived(
-		sm.slots.map((_, sid) => rowAtDist(sm.lapData(sid), hoverDist)),
+		tm.slots.map((_, sid) => rowAtDist(tm.lapData(sid), hoverDist)),
 	);
-	const slotColors = $derived(sm.slots.map((_, sid) => sm.color(sid)));
-	const slotTlas = $derived(sm.slots.map((_, sid) => sm.driverTla(sid)));
+	const slotColors = $derived(tm.slots.map((_, sid) => tm.color(sid)));
+	const slotTlas = $derived(tm.slots.map((_, sid) => tm.driverTla(sid)));
 
 	const activeDots = $derived.by(() => {
 		if (hoverDist === null) return [];
 
-		const samples = sm.slots
+		const samples = tm.slots
 			.map((_, sid) => {
-				const data = sm.lapData(sid);
+				const data = tm.lapData(sid);
 				const row = rowAtDist(data, hoverDist);
 				if (!row || !Number.isFinite(row.x) || !Number.isFinite(row.y))
 					return null;
@@ -148,8 +148,8 @@
 
 		const label =
 			samples.length === 1 || speedGap === 0
-				? sm.driverTla(winner.sid)
-				: `${sm.driverTla(winner.sid)} +${speedGap}km/h`;
+				? tm.driverTla(winner.sid)
+				: `${tm.driverTla(winner.sid)} +${speedGap}km/h`;
 
 		return [
 			{
@@ -161,6 +161,39 @@
 				color: "#ffffff",
 			},
 		];
+	});
+
+	// ── Load button label + class logic ──────────────────────────────────
+
+	const loadButtonLabel = $derived.by(() => {
+		if (tm.loadFeedback === "loading" || tm.isLoading) return "Loading…";
+		if (tm.loadFeedback === "success") return "✓ Loaded";
+		if (tm.loadFeedback === "error") return "✕ Error";
+		return "Load Data";
+	});
+
+	const loadButtonClass = $derived.by(() => {
+		const base =
+			"h-8 border px-5 font-mono text-xs font-black tracking-widest uppercase transition-all";
+		if (tm.loadFeedback === "success")
+			return `${base} border-green-500 bg-green-500/15 text-green-400`;
+		if (tm.loadFeedback === "error")
+			return `${base} border-red-500 bg-red-500/15 text-red-400`;
+		return `${base} border-primary bg-primary text-primary-foreground hover:bg-transparent hover:text-primary disabled:opacity-40`;
+	});
+
+	// ── Add Driver button label + class logic ────────────────────────────
+
+	const addDriverLabel = $derived(
+		tm.addDriverFeedback === "added" ? "✓ Added" : "Add Driver",
+	);
+
+	const addDriverClass = $derived.by(() => {
+		const base =
+			"h-8 border px-3 font-mono text-xs font-black tracking-widest uppercase transition-all duration-200";
+		if (tm.addDriverFeedback === "added")
+			return `${base} border-green-500 bg-green-500/15 text-green-400`;
+		return `${base} border-divider bg-surface text-on-surface hover:border-primary hover:bg-primary/10 hover:text-primary`;
 	});
 </script>
 
@@ -185,12 +218,14 @@
 			</div>
 
 			<div class="flex flex-wrap items-center gap-3">
-				{#if sm.needsReloadAny && !sm.isLoading}
-					<span class="font-mono text-[10px] text-amber-400 uppercase">
-						Selection changed. Hit Load Data again.
+				{#if tm.needsReloadAny && !tm.isLoading}
+					<span
+						class="font-mono text-[10px] text-amber-400 uppercase animate-pulse"
+					>
+						Selection changed — hit Load Data
 					</span>
 				{/if}
-				{#if sm.isLoading}
+				{#if tm.isLoading}
 					<div class="flex items-center gap-2">
 						<div
 							class="h-3 w-3 animate-spin rounded-full border border-divider border-t-foreground"
@@ -214,15 +249,27 @@
 				</label>
 				<Button
 					onclick={loadData}
-					disabled={!sm.canLoadData || sm.isLoading}
-					class="h-8 border border-primary bg-primary px-5 font-mono text-xs font-black tracking-widest text-primary-foreground uppercase transition-all hover:bg-transparent hover:text-primary disabled:opacity-40"
-					>{sm.isLoading ? "Loading…" : "Load Data"}</Button
+					disabled={!tm.canLoadData ||
+						tm.isLoading ||
+						tm.loadFeedback === "success"}
+					class={loadButtonClass}
+					>{loadButtonLabel}</Button
 				>
 				<Button
-					onclick={() => sm.addSlot()}
+					onclick={() => tm.addSlot()}
 					variant="outline"
-					class="h-8 border-divider bg-surface px-3 font-mono text-xs font-black tracking-widest text-on-surface uppercase transition-colors hover:border-primary hover:bg-primary/10 hover:text-primary"
-					>Add Driver</Button
+					class={addDriverClass}
+					>{addDriverLabel}</Button
+				>
+				<Button
+					onclick={() => {
+						tm.reset();
+						hoverDist = null;
+						xDomain = null;
+					}}
+					variant="outline"
+					class="h-8 border-divider bg-surface px-3 font-mono text-xs font-black tracking-widest text-on-surface-subtle uppercase transition-colors hover:border-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
+					>Reset</Button
 				>
 			</div>
 		</div>
@@ -264,16 +311,17 @@
 				class="max-h-[42vh] overflow-y-auto custom-scrollbar"
 				transition:slide={{ duration: 200 }}
 			>
-				{#each sm.slots as _, sid}
+				{#each tm.slots as _, sid}
 					<SlotRow
-						bind:slot={sm.slots[sid]}
+						bind:slot={tm.slots[sid]}
 						{sid}
 						{years}
-						laps={sm.driverLaps(sid)}
-						color={sm.color(sid)}
-						isLast={sid === sm.slots.length - 1}
-						isOnly={sm.slots.length === 1}
-						onremove={() => sm.removeSlot(sid)}
+						laps={tm.driverLaps(sid)}
+						color={tm.color(sid)}
+						isLoaded={tm.slots[sid].hasLoaded}
+						isLast={sid === tm.slots.length - 1}
+						isOnly={tm.slots.length === 1}
+						onremove={() => tm.removeSlot(sid)}
 					/>
 				{/each}
 			</div>
@@ -282,7 +330,7 @@
 
 	<!-- ── CHARTS + MAP ─────────────────────────────────────────────────── -->
 	<main class="flex min-h-0 flex-1 flex-col md:flex-row items-start gap-3 p-3">
-		{#if sm.isLoading}
+		{#if tm.isLoading}
 			<div
 				class="flex flex-1 items-center justify-center rounded-xl bg-surface py-48"
 			>
@@ -323,11 +371,11 @@
 				class="relative md:sticky top-3 h-100 md:h-[calc(100dvh-13rem)] w-full md:w-[320px] shrink-0 overflow-hidden rounded-xl border border-divider bg-surface xl:w-100"
 			>
 				<TrackMap
-					trackPath={sm.trackPath}
+					trackPath={tm.trackPath}
 					{activeDots}
-					speedDeltaMode={sm.slots.length > 1 &&
-						sm.lapData(0).length > 0 &&
-						sm.lapData(1).length > 0}
+					speedDeltaMode={tm.slots.length > 1 &&
+						tm.lapData(0).length > 0 &&
+						tm.lapData(1).length > 0}
 					{speedDeltaSegments}
 					rotation={0}
 					showLabels={false}
@@ -336,10 +384,10 @@
 			</div>
 		{:else}
 			<TelemetryEmptyState
-				slots={sm.slots}
-				slotColors={(sid) => sm.color(sid)}
-				slotBadge={(sid) => sm.badge(sid)}
-				slotDriverName={(sid) => sm.driverName(sid)}
+				slots={tm.slots}
+				slotColors={(sid) => tm.color(sid)}
+				slotBadge={(sid) => tm.badge(sid)}
+				slotDriverName={(sid) => tm.driverName(sid)}
 			/>
 		{/if}
 	</main>
