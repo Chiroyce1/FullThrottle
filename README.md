@@ -26,11 +26,13 @@ FullThrottle is built edge-first. The goal was to efficiently get the telemetry 
   - The frontend requests `.parquet` files from Hugging Face's CDN. Each file is a few MB.
   - The client parses the data in-browser using `hyparquet`. Once a session is loaded, switching between drivers and laps is near-instant.
 
-## CI/CD & Data Pipeline
+## Data Pipeline
 
-The ingest pipeline runs on GitHub Actions and has three regions that need to stay in sync — which is the main source of complexity.
+The ingest pipeline runs on GitHub Actions as a **scheduled cron job** — it is not a CI/CD pipeline. There are no automated tests or deployments in this workflow. The app itself deploys via Cloudflare Pages on push to `main`.
 
 ### The three regions
+
+Three separate locations hold data and need to stay in sync — this is the main source of complexity:
 
 | Region | What lives there | Who writes it |
 |---|---|---|
@@ -42,17 +44,17 @@ The ingest pipeline runs on GitHub Actions and has three regions that need to st
 
 ### How a run works
 
-The workflow (`.github/workflows/telemetry.yml`) runs hourly and has three steps:
+The workflow (`.github/workflows/telemetry.yml`) runs **hourly** and has three steps:
 
 1. **`ingest.py 2026`** — Fetches the FastF1 event schedule, skips sessions already in `metadata.json` or not yet finished, downloads new telemetry, and writes Parquet + JSON files into `static/data/`.
 2. **`build_metadata.py`** — Scans `static/data/` for new session files and rebuilds `metadata.json`. Critically, it **seeds from the existing committed `metadata.json` first**, so historical rounds are never wiped even when the CI runner has an empty `static/data/` directory.
 3. **`upload.py`** — Walks `static/data/` and uploads any files not already present on Hugging Face. Skips existing files.
 
-The ingest step has `continue-on-error: true`. If FastF1's API is flaky (common during a live race weekend), the metadata rebuild and HF upload still run, and the next hourly run will retry the ingest.
+The ingest step has `continue-on-error: true`. If FastF1's API is flaky (common during a live race weekend), the metadata rebuild and HF upload still proceed, and the next hourly run will retry.
 
 ### Why `metadata.json` is committed to the repo
 
-The frontend fetches `metadata.json` from the same origin as the app (not HF), so it's fast and doesn't need a cold-start HF request. It also serves as the source of truth for what sessions have already been processed, which lets `ingest.py` skip re-downloading sessions on a fresh CI runner that has no local data.
+The frontend fetches `metadata.json` from the same origin as the app (not HF), so it's fast with no cold-start. It also acts as the source of truth for which sessions have been processed, letting `ingest.py` skip re-downloading sessions on a fresh runner that has no local data.
 
 ### Local development with data
 
