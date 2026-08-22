@@ -366,6 +366,28 @@
                     "location": "Budapest",
                     "circuit": "FORMULA 1 AWS HUNGARIAN GRAND PRIX 2026",
                     "date": "2026-07-26"
+                },
+                {
+                    "round": 12,
+                    "name": "Dutch Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "sq",
+                            "label": "Sprint Qualifying"
+                        },
+                        {
+                            "code": "s",
+                            "label": "Sprint"
+                        }
+                    ],
+                    "country": "Netherlands",
+                    "location": "Zandvoort",
+                    "circuit": "FORMULA 1 HEINEKEN DUTCH GRAND PRIX 2026",
+                    "date": "2026-08-23"
                 }
             ]
         },
