@@ -6,6 +6,13 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 HF_REPO = os.getenv("HF_REPO")
 
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Pull missing data files from HF.")
+    parser.add_argument("--refresh", action="store_true",
+                        help="Re-download sidecar JSONs even when present locally.")
+    cli = parser.parse_args()
+
     if not HF_REPO:
         print("Error: HF_REPO not found in .env")
         return
@@ -32,7 +39,14 @@ def main():
         rel_path = hf_path[5:] # remove 'data/' prefix
         local_path = os.path.join(base_dir, rel_path)
 
-        if not os.path.exists(local_path):
+        # Parquets are immutable once ingested, JSON sidecars gain patches
+        # over time, so --refresh re-pulls JSONs to pick up enrichments.
+        if os.path.exists(local_path):
+            if cli.refresh and hf_path.endswith('.json'):
+                print(f"Refreshing from HF: {hf_path}")
+            else:
+                continue
+        else:
             print(f"Downloading missing file from HF: {hf_path}")
             try:
                 os.makedirs(os.path.dirname(local_path), exist_ok=True)

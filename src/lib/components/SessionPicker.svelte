@@ -108,12 +108,14 @@
 		})),
 	);
 	const roundOptions = $derived(
-		(activeYearData?.rounds || []).map((r: RoundEntry) => ({
-			value: r.round.toString(),
-			label: r.name,
-			keywords: `${r.location || ""} ${r.country || ""}`,
-			rightLabel: (r.location || r.country || "").toUpperCase(),
-		})),
+		[...(activeYearData?.rounds || [])]
+			.sort((a: RoundEntry, b: RoundEntry) => b.round - a.round)
+			.map((r: RoundEntry) => ({
+				value: r.round.toString(),
+				label: r.name,
+				keywords: `${r.location || ""} ${r.country || ""}`,
+				rightLabel: (r.location || r.country || "").toUpperCase(),
+			})),
 	);
 	const sessionOptions = $derived(
 		(activeRoundData?.sessions || []).map((s: SessionEntry) => ({

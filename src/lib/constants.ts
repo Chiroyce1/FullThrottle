@@ -8,7 +8,7 @@ export const CHART_HEIGHT_SPEED = 300;
 
 // ─── Lap time constants ───────────────────────────────────────────────────────
 
-/** Maximum plausible F1 lap time in seconds — anything above is treated as invalid */
+/** Maximum plausible F1 lap time in seconds. Anything above counts as invalid. */
 export const MAX_LAP_TIME_SECONDS = 600;
 
 // ─── LiCO (Lift and Coast) detection ─────────────────────────────────────────

@@ -26,6 +26,7 @@
 		triggerClass = "",
 		contentClass = "",
 		listClass = "",
+		onchange,
 	}: {
 		value?: string;
 		options?: SearchableSelectOption[];
@@ -36,6 +37,7 @@
 		triggerClass?: string;
 		contentClass?: string;
 		listClass?: string;
+		onchange?: (val: string) => void;
 	} = $props();
 
 	let open = $state(false);
@@ -51,6 +53,7 @@
 
 	function selectOption(nextValue: string) {
 		value = nextValue;
+		if (onchange) onchange(nextValue);
 		closeAndFocusTrigger();
 	}
 </script>
@@ -95,30 +98,34 @@
 						<Command.Item
 							value={`${option.label} ${option.keywords ?? ""}`}
 							onSelect={() => selectOption(option.value)}
-							class="group"
+							class="flex items-center justify-between gap-3 px-3 py-2 cursor-pointer transition-colors"
 						>
-							{#if option.compound}
-								<CompoundBadge compound={option.compound} size={14} />
-							{:else if option.colorDot}
-								<span
-									class="h-2 w-2 shrink-0 rounded-full"
-									style={`background:${option.colorDot}`}
-								></span>
-							{/if}
-							<span class="truncate">{option.label}</span>
-							{#if option.rightLabel}
-								<span
-									class="ml-auto font-mono text-[10px] text-on-surface-subtle"
-								>
-									{option.rightLabel}
+							<div class="flex items-center gap-2 min-w-0 flex-1">
+								{#if option.compound}
+									<CompoundBadge compound={option.compound} size={14} />
+								{:else if option.colorDot}
+									<span
+										class="h-2 w-2 shrink-0 rounded-full"
+										style={`background:${option.colorDot}`}
+									></span>
+								{/if}
+								<span class="truncate text-sm font-medium">{option.label}</span>
+							</div>
+
+							<div class="flex items-center gap-2.5 shrink-0 ml-auto">
+								{#if option.rightLabel}
+									<span
+										class="font-mono text-[10px] tracking-wider text-muted-foreground uppercase"
+									>
+										{option.rightLabel}
+									</span>
+								{/if}
+								<span class="flex size-4 items-center justify-center shrink-0">
+									{#if value === option.value}
+										<Check class="size-3.5 text-primary stroke-[2.5]" />
+									{/if}
 								</span>
-							{/if}
-							<Check
-								class={cn(
-									"ml-2 size-4 shrink-0",
-									value === option.value ? "opacity-100" : "opacity-0",
-								)}
-							/>
+							</div>
 						</Command.Item>
 					{/each}
 				</Command.Group>

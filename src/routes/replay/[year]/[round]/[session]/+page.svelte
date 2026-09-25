@@ -10,11 +10,13 @@
 	import Leaderboard from "$lib/components/Leaderboard.svelte";
 	import TrackStatus from "$lib/components/TrackStatus.svelte";
 	import ModeToggle from "$lib/components/ModeToggle.svelte";
+	import WeatherWidget from "$lib/components/WeatherWidget.svelte";
 	import {
 		buildActiveDots,
 		buildTrackStatusGradient,
 		getFocusedNearbyDrivers,
 		getReplayFilename,
+		sampleWeatherAtTime,
 		sortLiveLeaderboard,
 		TRACK_STATUS_SAFE,
 	} from "$lib/replay/replay-utils";
@@ -38,6 +40,8 @@
 			cancelAnimationFrame(reqFrameId);
 		}
 		lastFrameTime = 0;
+		lastCommitTime = 0;
+		preciseTime = 0;
 		globalTime = 0;
 		focusedDriver = "";
 		engine.dispose();
@@ -93,6 +97,7 @@
 	let showCornersOnMap = $state<boolean>(false);
 	let trackCorners = $state<TrackCorner[]>([]);
 	let lastCornerLocation = $state("");
+	let mobileTab = $state<"map" | "leaderboard" | "both">("map");
 
 	// Ensure global time initializes safely when data loads
 	$effect(() => {
@@ -128,6 +133,9 @@
 	const telemetryIssue = $derived(
 		getTelemetryIssue(page.params.year, page.params.round, page.params.session),
 	);
+	const currentWeather = $derived(
+		sampleWeatherAtTime(engine.metadata?.session_info, globalTime),
+	);
 
 	// Convert current frame into a format suitable for the TrackMap component
 	const activeDots = $derived.by(() =>
@@ -156,7 +164,9 @@
 		getFocusedNearbyDrivers(liveLeaderboard, focusedDriver),
 	);
 
-	// Focused Driver specifically
+	// Focused driver's frame row. getFrame() mutates frameRows in-place for
+	// performance, so we shallow-copy to give Svelte a new reference each
+	// commit (~30 Hz after throttle). One spread of ~20 keys is negligible.
 	const focusedTelemetry = $derived.by(() => {
 		const row = currentFrameData[focusedDriver];
 		return row ? { ...row } : undefined;
@@ -201,7 +211,12 @@
 		);
 	});
 
-	// Playback Loop
+	// Playback Loop. Throttled to ~30Hz state commits: getFrame() re-derives
+	// all 20 driver cursors + neighbor gaps per commit, so 60fps commits are
+	// pure GC churn for no visible gain. Session time stays exact — only the
+	// reactive commit is coalesced.
+	let lastCommitTime = 0;
+	let preciseTime = 0;
 	function loop(timestamp: number) {
 		if (!isPlaying) return;
 
@@ -211,11 +226,18 @@
 		const deltaSeconds = (timestamp - lastFrameTime) / 1000;
 		lastFrameTime = timestamp;
 
-		globalTime += deltaSeconds * playbackSpeed;
+		preciseTime += deltaSeconds * playbackSpeed;
 
-		if (globalTime >= engine.maxSessionTime) {
-			globalTime = engine.maxSessionTime;
+		if (preciseTime >= engine.maxSessionTime) {
+			preciseTime = engine.maxSessionTime;
+			globalTime = preciseTime;
 			isPlaying = false;
+			return;
+		}
+
+		if (timestamp - lastCommitTime >= 33 || playbackSpeed > 2) {
+			globalTime = preciseTime;
+			lastCommitTime = timestamp;
 		}
 
 		if (isPlaying) {
@@ -226,6 +248,8 @@
 	function togglePlay() {
 		isPlaying = !isPlaying;
 		if (isPlaying) {
+			preciseTime = globalTime;
+			lastCommitTime = performance.now();
 			lastFrameTime = performance.now();
 			reqFrameId = requestAnimationFrame(loop);
 		} else {
@@ -236,79 +260,98 @@
 	function handleScrub(e: Event) {
 		const target = e.target as HTMLInputElement;
 		globalTime = parseFloat(target.value);
+		preciseTime = globalTime;
 	}
 </script>
 
+<svelte:head>
+	<title>{engine.metadata?.session_info?.name
+		? `${page.params.year} ${engine.metadata.session_info.name} — FullThrottle`
+		: 'Session Replay — FullThrottle'}</title>
+</svelte:head>
+
 <div
-	class="flex min-h-screen flex-col bg-background p-3 text-foreground selection:bg-red-900/40 selection:text-foreground sm:p-4"
+	class="flex min-h-screen flex-col bg-background text-foreground selection:bg-red-900/40 selection:text-foreground"
 	style="font-family: 'IBM Plex Sans', sans-serif;"
 >
-	{#if telemetryIssue}
-		<div
-			class="mb-3 flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-600 dark:text-amber-400 shadow-xs"
-		>
-			<AlertTriangle class="h-5 w-5 shrink-0 text-amber-500" />
-			<div
-				class="flex flex-col text-xs sm:flex-row sm:items-center sm:gap-2 sm:text-sm"
+	<!-- Top navbar -->
+	<header
+		class="flex shrink-0 items-center justify-between border-b border-divider/60 bg-surface/50 px-4 py-2.5 sm:px-3 sm:py-1.5"
+	>
+		<div class="flex items-center gap-2">
+			<a
+				href="/"
+				class="flex h-8 w-8 items-center justify-center rounded-md -ml-1 text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground active:scale-95"
+				title="Back to Home"
 			>
-				<span
-					>{telemetryIssue.message ||
-						`Telemetry data has known issues for ${telemetryIssue.name || "this session"}.`}</span
-				>
-			</div>
+				<Home class="h-4 w-4" />
+			</a>
+			<span class="text-border/60">/</span>
+			<span class="font-mono text-xs sm:text-[11px] font-bold tracking-wider text-foreground uppercase truncate max-w-[200px] sm:max-w-none">
+				{page.params.year} · {engine.metadata?.session_info?.name || (page.params.session ?? "").toUpperCase()}
+			</span>
 		</div>
-	{/if}
 
-	<!-- TOP SECTION -->
-	<div class="mb-3 flex flex-col gap-3">
-		{#if engine.totalRows > 0}
-			<div class="flex flex-col gap-3 bg-background px-1 py-1">
-				<div class="flex flex-wrap items-center justify-between gap-3">
-					<div class="flex flex-wrap items-center gap-3 sm:gap-4">
-						<div class="flex items-center gap-2">
-							<a
-								href="/"
-								class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-divider text-muted-foreground transition-all hover:border-foreground hover:text-foreground"
-								title="Back to Home"
+		<div class="flex items-center">
+			<ModeToggle class="!h-8 !w-8 rounded-md !border-0 !bg-transparent p-1.5 text-muted-foreground hover:bg-surface-raised hover:text-foreground" />
+		</div>
+	</header>
+
+	<div class="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
+		{#if telemetryIssue}
+			<div
+				class="mb-3 flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-600 dark:text-amber-400 shadow-xs"
+			>
+				<AlertTriangle class="h-5 w-5 shrink-0 text-amber-500" />
+				<div
+					class="flex flex-col text-xs sm:flex-row sm:items-center sm:gap-2 sm:text-sm"
+				>
+					<span
+						>{telemetryIssue.message ||
+							`Telemetry data has known issues for ${telemetryIssue.name || "this session"}.`}</span
+					>
+				</div>
+			</div>
+		{/if}
+
+		<!-- TOP SECTION -->
+		<div class="mb-3 flex flex-col gap-3">
+			{#if engine.totalRows > 0}
+				<div class="flex flex-col gap-3 bg-background px-1 py-1">
+					<div class="flex flex-wrap items-center justify-between gap-3">
+						<div class="flex items-center gap-3">
+							<button
+								onclick={togglePlay}
+								class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-105 active:scale-95"
+								title={isPlaying ? "Pause" : "Play"}
 							>
-								<Home />
-							</a>
-							<ModeToggle class="h-12 w-12 rounded-full" />
-						</div>
+								{#if isPlaying}
+									<svg
+										width="15"
+										height="15"
+										viewBox="0 0 24 24"
+										fill="currentColor"
+										><rect x="6" y="4" width="4" height="16" /><rect
+											x="14"
+											y="4"
+											width="4"
+											height="16"
+										/></svg
+									>
+								{:else}
+									<svg
+										width="15"
+										height="15"
+										viewBox="0 0 24 24"
+										fill="currentColor"
+										class="translate-x-0.5"
+										><polygon points="5 3 19 12 5 21 5 3" /></svg
+									>
+								{/if}
+							</button>
 
-						<div class="hidden pl-0 sm:pl-4 md:block">
 							<TrackStatus status={currentTrackStatus} />
 						</div>
-
-						<button
-							onclick={togglePlay}
-							class="ml-2 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-105 active:scale-95"
-						>
-							{#if isPlaying}
-								<svg
-									width="18"
-									height="18"
-									viewBox="0 0 24 24"
-									fill="currentColor"
-									><rect x="6" y="4" width="4" height="16" /><rect
-										x="14"
-										y="4"
-										width="4"
-										height="16"
-									/></svg
-								>
-							{:else}
-								<svg
-									width="18"
-									height="18"
-									viewBox="0 0 24 24"
-									fill="currentColor"
-									class="translate-x-0.5"
-									><polygon points="5 3 19 12 5 21 5 3" /></svg
-								>
-							{/if}
-						</button>
-					</div>
 
 					<div class="flex shrink-0 items-center gap-2 pl-0 sm:pl-4">
 						<label
@@ -397,17 +440,41 @@
 				class="mb-6 h-10 w-10 animate-spin rounded-full border-2 border-divider border-t-foreground"
 			></div>
 			<p
-				class="animate-pulse font-mono text-xs tracking-[0.3em] text-muted-foreground uppercase"
+				class="animate-pulse font-mono text-xs text-muted-foreground uppercase"
 			>
-				Loading Telemetry at {engine.activeSampleRate}Hz...
+				Loading telemetry…
 			</p>
 		</div>
 	{:else if engine.totalRows > 0}
+		<!-- Mobile View Tabs (< xl) -->
+		<div
+			class="flex xl:hidden items-center justify-center p-1 rounded-lg bg-surface-raised/70 border border-divider/60 mb-1 gap-1"
+		>
+			<button
+				onclick={() => (mobileTab = "map")}
+				class="flex-1 py-1.5 px-3 rounded-md font-mono text-[11px] font-bold uppercase tracking-wider transition-all {mobileTab === 'map' ? 'bg-surface shadow-xs text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+			>
+				Track Map
+			</button>
+			<button
+				onclick={() => (mobileTab = "leaderboard")}
+				class="flex-1 py-1.5 px-3 rounded-md font-mono text-[11px] font-bold uppercase tracking-wider transition-all {mobileTab === 'leaderboard' ? 'bg-surface shadow-xs text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+			>
+				Leaderboard
+			</button>
+			<button
+				onclick={() => (mobileTab = "both")}
+				class="flex-1 py-1.5 px-3 rounded-md font-mono text-[11px] font-bold uppercase tracking-wider transition-all {mobileTab === 'both' ? 'bg-surface shadow-xs text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+			>
+				Split
+			</button>
+		</div>
+
 		<!-- Main Replay Interface -->
 		<div class="flex min-h-0 flex-1 flex-col gap-4 xl:flex-row">
 			<!-- Left Sidebar: Vertical Live Leaderboard -->
 			<div
-				class="flex h-88 w-full min-h-0 shrink-0 flex-col sm:h-104 xl:h-auto xl:w-[50vw] xl:max-w-[50vw]"
+				class="w-full min-h-0 shrink-0 flex-col xl:flex xl:h-auto xl:w-[50vw] xl:max-w-[50vw] {mobileTab === 'leaderboard' ? 'flex flex-1 h-[60vh] sm:h-[65vh]' : mobileTab === 'both' ? 'flex h-88 sm:h-104' : 'hidden xl:flex'}"
 			>
 				<Leaderboard
 					drivers={liveLeaderboard}
@@ -420,28 +487,49 @@
 
 			<!-- Center/Right: Track Map -->
 			<div
-				class="relative flex aspect-square w-full max-h-[60vh] flex-col overflow-hidden rounded-lg border border-divider bg-surface sm:max-h-[65vh] xl:w-[50vw] xl:max-w-[50vw] xl:max-h-[calc(100vh-200px)]"
+				class="relative aspect-square w-full max-h-[60vh] flex-col overflow-hidden rounded-lg border border-divider bg-surface sm:max-h-[65vh] xl:flex xl:w-[50vw] xl:max-w-[50vw] xl:max-h-[calc(100vh-200px)] {mobileTab === 'map' || mobileTab === 'both' ? 'flex' : 'hidden xl:flex'}"
 			>
+				<!-- Track Map Header: Weather (separate line on mobile) + Corners toggle & Rotation -->
 				<div
-					class="flex shrink-0 items-center justify-end border-b border-divider bg-surface-raised/60 px-4 py-2"
+					class="flex shrink-0 flex-col sm:flex-row sm:items-center justify-between gap-x-3 gap-y-2 border-b border-divider bg-surface-raised/40 px-3 py-2 sm:py-1.5"
 				>
-					<!-- Rotation Slider -->
-					<div class="flex items-center gap-2 sm:gap-3">
-						<span
-							class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
-							>Rotation</span
+					<!-- Weather: on its own line on mobile -->
+					{#if currentWeather}
+						<div class="flex items-center min-w-0 overflow-x-auto">
+							<WeatherWidget weather={currentWeather} class="bg-transparent px-0 py-0" />
+						</div>
+					{/if}
+
+					<!-- Controls: Corners toggle (left on mobile, right on desktop) + Rotation Slider -->
+					<div class="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+						<!-- Corners toggle -->
+						<button
+							onclick={() => (showCornersOnMap = !showCornersOnMap)}
+							title={showCornersOnMap ? 'Hide corner numbers' : 'Show corner numbers'}
+							class="flex items-center gap-1.5 rounded border border-divider/60 bg-surface-overlay/50 px-2 py-1 font-mono text-[9px] font-semibold uppercase tracking-widest transition-colors hover:text-foreground {showCornersOnMap ? 'border-primary/50 text-foreground shadow-xs' : 'text-muted-foreground/70'}"
 						>
-						<input
-							type="range"
-							min="0"
-							max="360"
-							step="1"
-							bind:value={mapRotation}
-							class="h-1 w-24 cursor-ew-resize appearance-none rounded-full bg-surface-overlay accent-muted-foreground sm:w-32"
-						/>
-						<span class="w-8 text-right font-mono text-[10px] text-foreground"
-							>{mapRotation}°</span
-						>
+							<span class="inline-block size-1.5 rounded-full {showCornersOnMap ? 'bg-primary' : 'bg-muted-foreground/30'}"></span>
+							Corners
+						</button>
+
+						<!-- Rotation Slider -->
+						<div class="flex items-center gap-2 shrink-0">
+							<span
+								class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
+								>Rotation</span
+							>
+							<input
+								type="range"
+								min="0"
+								max="360"
+								step="1"
+								bind:value={mapRotation}
+								class="h-1.5 w-20 cursor-ew-resize appearance-none rounded-full bg-surface-overlay accent-primary sm:w-24"
+							/>
+							<span class="w-7 text-right font-mono text-[10px] text-foreground"
+								>{mapRotation}°</span
+							>
+						</div>
 					</div>
 				</div>
 
@@ -472,4 +560,5 @@
 			</p>
 		</div>
 	{/if}
+	</div>
 </div>

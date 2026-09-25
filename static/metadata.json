@@ -416,12 +416,76 @@
                         {
                             "code": "q",
                             "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
                         }
                     ],
                     "country": "Italy",
                     "location": "Monza",
                     "circuit": "FORMULA 1 PIRELLI GRAN PREMIO D\u2019ITALIA 2026",
                     "date": "2026-09-06"
+                },
+                {
+                    "round": 14,
+                    "name": "Spanish Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "fp2",
+                            "label": "Practice 2"
+                        },
+                        {
+                            "code": "fp3",
+                            "label": "Practice 3"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Spain",
+                    "location": "Madrid",
+                    "circuit": "FORMULA 1 TAG HEUER GRAN PREMIO DE ESPA\u00d1A 2026",
+                    "date": "2026-09-13"
+                },
+                {
+                    "round": 15,
+                    "name": "Azerbaijan Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "fp2",
+                            "label": "Practice 2"
+                        },
+                        {
+                            "code": "fp3",
+                            "label": "Practice 3"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        },
+                        {
+                            "code": "r",
+                            "label": "Race"
+                        }
+                    ],
+                    "country": "Azerbaijan",
+                    "location": "Baku",
+                    "circuit": "FORMULA 1 QATAR AIRWAYS AZERBAIJAN GRAND PRIX 2026",
+                    "date": "2026-09-26"
                 }
             ]
         },

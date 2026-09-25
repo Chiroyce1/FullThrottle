@@ -33,6 +33,10 @@ function now(): number {
 	return performance.now();
 }
 
+function yieldToPaint(): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 type ParquetReadObjectsFn = (args: {
 	file: ArrayBuffer;
 	compressors: unknown;
@@ -130,8 +134,12 @@ const FRAME_KEYS: (keyof TelemetryRow)[] = [
 	"in_pit",
 	"x",
 	"y",
-	"z"
+	"z",
 ];
+
+// Max laps retained per lap cache (raw + normalized each hold full slices).
+// Clicking through a 60-lap race without a cap pins every visited lap.
+const MAX_CACHED_LAPS = 8;
 
 export class TelemetryEngine {
 	isLoading = $state(false);
@@ -170,6 +178,12 @@ export class TelemetryEngine {
 		string,
 		Record<number, TelemetryRow[]>
 	> = {};
+	// FIFO eviction order for the two lap caches above. Unbounded, every lap
+	// the user clicks stays retained (raw slice + normalized copy), which is
+	// how a 60-lap race quietly accumulates hundreds of MB. Capped at 8 laps
+	// each — enough for A/B comparisons plus a few recent laps.
+	private lapCacheOrder: string[] = [];
+	private normalizedCacheOrder: string[] = [];
 	private estimatedLapLengthMeters = 5000;
 	private sectorCrossings: Record<string, Float32Array> = {};
 
@@ -247,24 +261,34 @@ export class TelemetryEngine {
 			const tFetch = now();
 			const res = await fetch(parquetUrl, { signal: controller.signal });
 			if (!res.ok) throw new Error(`Failed to fetch ${parquetUrl}`);
-			const buffer = await res.arrayBuffer();
+			let buffer: ArrayBuffer | null = await res.arrayBuffer();
 			if (token !== this.loadToken) return;
 			const fetchMs = now() - tFetch;
+			await yieldToPaint();
+			if (token !== this.loadToken) return;
 
 			const tParse = now();
 			const { parquetReadObjects, compressors } = await getParquetRuntime();
-			let rows = (await parquetReadObjects({
+			let rows: TelemetryRow[] | null = (await parquetReadObjects({
 				file: buffer,
 				compressors,
 			})) as TelemetryRow[];
+			// Release the compressed buffer before analysis: buffer + decoded
+			// rows peak together (~20MB + ~300MB), this drops the peak by half.
+			buffer = null;
 			if (token !== this.loadToken) {
-				// @ts-ignore
-				rows = null!;
+				rows = null;
 				return;
 			}
 			const parseMs = now() - tParse;
+			await yieldToPaint();
+			if (token !== this.loadToken) {
+				rows = null;
+				return;
+			}
 
 			const tAnalysis = now();
+			if (!rows) return;
 			this.originalRows = rows.length;
 			const count = rows.length;
 
@@ -308,7 +332,7 @@ export class TelemetryEngine {
 				grouped[id].push(row);
 
 				const lap = row.lap_number ?? 0;
-				if (lap > 0 && row.x !== undefined && row.y !== undefined) {
+				if (lap > 0 && isValidCoord(row.x as number | undefined, row.y as number | undefined)) {
 					if (!lapPointCounts[id]) lapPointCounts[id] = {};
 					lapPointCounts[id][lap] = (lapPointCounts[id][lap] ?? 0) + 1;
 				}
@@ -321,8 +345,8 @@ export class TelemetryEngine {
 
 			const path = extractTrackPath(grouped, lapPointCounts, winner);
 
-			// @ts-ignore
-			rows = null!;
+			// Free decoded rows before downsampling retains its own subset.
+			rows = null;
 
 			const { grouped: downsampledGrouped, totalRows: downsampledTotal } =
 				downsampleTraces(grouped, hz);
@@ -342,6 +366,8 @@ export class TelemetryEngine {
 			this.lapIndex = buildLapIndex(downsampledGrouped);
 			this.lapTelemetryCache = {};
 			this.normalizedLapTelemetryCache = {};
+			this.lapCacheOrder = [];
+			this.normalizedCacheOrder = [];
 			this.driverLapStats = lapStats;
 			this.sessionBestTimeline = lapCompletionEvents;
 			this.sessionBestCursor = 0;
@@ -376,7 +402,7 @@ export class TelemetryEngine {
 				? `${this.metadata.session_info.year ?? ""} ${this.metadata.session_info.name} ${this.metadata.session_info.type}`
 				: parquetUrl;
 			console.log(
-				`[TelemetryEngine] Loaded "${sessionLabel}" — ${this.uniqueDrivers.length} drivers, ${this.totalRows.toLocaleString()} rows in ${this.benchmark.totalMs}ms`,
+				`[TelemetryEngine] Loaded "${sessionLabel}": ${this.uniqueDrivers.length} drivers, ${this.totalRows.toLocaleString()} rows in ${this.benchmark.totalMs}ms`,
 			);
 
 			posthog.capture("session_loaded", {
@@ -525,6 +551,8 @@ export class TelemetryEngine {
 		this.lapIndex = {};
 		this.lapTelemetryCache = {};
 		this.normalizedLapTelemetryCache = {};
+		this.lapCacheOrder = [];
+		this.normalizedCacheOrder = [];
 		this.estimatedLapLengthMeters = 5000;
 		this.sectorCrossings = {};
 	}
@@ -558,6 +586,7 @@ export class TelemetryEngine {
 		const trace = this.driverData[id].slice(range[0], range[1] + 1);
 		if (!this.lapTelemetryCache[id]) this.lapTelemetryCache[id] = {};
 		this.lapTelemetryCache[id][lap] = trace;
+		this.trackLapCacheEntry(this.lapCacheOrder, this.lapTelemetryCache, `${id}:${lap}`);
 		return trace;
 	}
 
@@ -577,7 +606,33 @@ export class TelemetryEngine {
 		if (!this.normalizedLapTelemetryCache[id])
 			this.normalizedLapTelemetryCache[id] = {};
 		this.normalizedLapTelemetryCache[id][lap] = normalized;
+		this.trackLapCacheEntry(
+			this.normalizedCacheOrder,
+			this.normalizedLapTelemetryCache,
+			`${id}:${lap}`,
+		);
 		return normalized;
+	}
+
+	// FIFO eviction for lap caches. Each entry holds a full lap slice, so an
+	// uncapped cache grows with every lap the user clicks through a race.
+	private trackLapCacheEntry(
+		order: string[],
+		cache: Record<string, Record<number, TelemetryRow[]>>,
+		key: string,
+	) {
+		order.push(key);
+		while (order.length > MAX_CACHED_LAPS) {
+			const oldest = order.shift();
+			if (!oldest) break;
+			const sep = oldest.lastIndexOf(":");
+			if (sep < 0) continue;
+			const driverId = oldest.slice(0, sep);
+			const lap = Number(oldest.slice(sep + 1));
+			const bucket = cache[driverId];
+			if (bucket && bucket[lap]) delete bucket[lap];
+			if (bucket && Object.keys(bucket).length === 0) delete cache[driverId];
+		}
 	}
 
 	getDriverLapTimes(id: string): LapTimingEntry[] {

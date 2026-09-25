@@ -45,7 +45,7 @@
 	<meta property="og:title" content="FullThrottle - F1 Telemetry" />
 	<meta
 		property="og:description"
-		content="A Free web platform for F1 insights."
+		content="Free and open-source F1 telemetry charts and session replays."
 	/>
 	<meta
 		property="og:image"
@@ -56,7 +56,7 @@
 	<meta property="twitter:title" content="FullThrottle - F1 Telemetry" />
 	<meta
 		property="twitter:description"
-		content="A Free web platform for F1 insights."
+		content="Free and open-source F1 telemetry charts and session replays."
 	/>
 	<meta
 		property="twitter:image"

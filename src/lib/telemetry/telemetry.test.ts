@@ -9,7 +9,7 @@ import type {
 	TelemetryMeta,
 	TelemetryFrameRow,
 } from "$lib/types";
-import { isValidCoord, extractTrackPath } from "./track";
+import { isValidCoord, extractTrackPath, isConsistentPath } from "./track";
 import { computeLapStats, buildLapIndex } from "./lap-stats";
 import { applyDynamicNeighborGaps, estimateLapLengthMeters } from "./gaps";
 import { downsampleTraces } from "./downsample";
@@ -26,6 +26,46 @@ describe("Telemetry Coordinate Validation", () => {
 	it("should accept valid coordinates", () => {
 		expect(isValidCoord(10.5, -4.2)).toBe(true);
 		expect(isValidCoord(0.0001, 0.0001)).toBe(true);
+	});
+});
+
+describe("Track Path Consistency and Closure Validation", () => {
+	it("should reject paths with fewer than 80 points", () => {
+		const shortPath = Array.from({ length: 50 }, (_, i) => ({ x: i * 10, y: i * 10 }));
+		expect(isConsistentPath(shortPath)).toBe(false);
+	});
+
+	it("should reject partial lap snippets that do not meet minimum track length", () => {
+		// 100 points but only covering 5,000 units total distance (a tiny partial segment)
+		const partialPath = Array.from({ length: 100 }, (_, i) => ({
+			x: i * 50,
+			y: i * 10,
+		}));
+		expect(isConsistentPath(partialPath)).toBe(false);
+	});
+
+	it("should reject unclosed track paths where start and end do not meet", () => {
+		// 200 points covering 40,000 units but straight line with open endpoints
+		const openPath = Array.from({ length: 200 }, (_, i) => ({
+			x: i * 200,
+			y: 0,
+		}));
+		expect(isConsistentPath(openPath)).toBe(false);
+	});
+
+	it("should accept a complete, closed circuit loop", () => {
+		// Generate an ellipse circuit with ~40,000 units perimeter and closed loop
+		const numPoints = 200;
+		const a = 7000;
+		const b = 5000;
+		const closedCircuit = Array.from({ length: numPoints }, (_, i) => {
+			const theta = (i / numPoints) * 2 * Math.PI;
+			return {
+				x: Math.round(a * Math.cos(theta)),
+				y: Math.round(b * Math.sin(theta)),
+			};
+		});
+		expect(isConsistentPath(closedCircuit)).toBe(true);
 	});
 });
 
@@ -117,7 +157,8 @@ describe.each(TEST_SESSIONS)(
 				lapPointCounts,
 				winnerId,
 			);
-			expect(pathPoints.length).toBeGreaterThan(0);
+			expect(pathPoints.length).toBeGreaterThanOrEqual(80);
+			expect(isConsistentPath(pathPoints)).toBe(true);
 
 			for (const pt of pathPoints) {
 				expect(Number.isFinite(pt.x)).toBe(true);
@@ -125,6 +166,23 @@ describe.each(TEST_SESSIONS)(
 				expect(pt.x).not.toBe(0);
 				expect(pt.y).not.toBe(0);
 			}
+
+			// Validate complete circuit loop closure
+			const closureDist = Math.hypot(
+				pathPoints[pathPoints.length - 1].x - pathPoints[0].x,
+				pathPoints[pathPoints.length - 1].y - pathPoints[0].y,
+			);
+			expect(closureDist).toBeLessThan(2000);
+
+			// Validate circuit perimeter (all F1 circuits are >= 3.3km)
+			let totalDist = 0;
+			for (let i = 1; i < pathPoints.length; i++) {
+				totalDist += Math.hypot(
+					pathPoints[i].x - pathPoints[i - 1].x,
+					pathPoints[i].y - pathPoints[i - 1].y,
+				);
+			}
+			expect(totalDist).toBeGreaterThanOrEqual(18000);
 		});
 
 		it("should handle empty or fallback cases gracefully for track extraction", () => {
@@ -322,3 +380,4 @@ describe.each(TEST_SESSIONS)(
 		});
 	},
 );
+

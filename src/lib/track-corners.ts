@@ -27,7 +27,9 @@ export interface TrackData {
 
 /**
  * Normalises a location string into the track JSON filename (without extension).
- * e.g. "Spa-Francorchamps" → "spafrancorchamps", "Miami Gardens" → "miami"
+ * "Spa-Francorchamps" becomes "spafrancorchamps", "Miami Gardens" becomes "miami".
+ * Accents fold to ASCII so "Montréal" becomes "montreal". Keep in sync
+ * with CANONICAL_OVERRIDES in ingest/extract_tracks.py.
  */
 const LOCATION_OVERRIDES: Record<string, string> = {
 	"miami gardens": "miami",
@@ -36,7 +38,10 @@ const LOCATION_OVERRIDES: Record<string, string> = {
 };
 
 function locationToFilename(location: string): string {
-	const lower = location.toLowerCase();
+	const lower = location
+		.normalize("NFKD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.toLowerCase();
 	if (LOCATION_OVERRIDES[lower]) return LOCATION_OVERRIDES[lower];
 	return lower.replace(/-/g, "").replace(/\s+/g, "_");
 }

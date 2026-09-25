@@ -4,6 +4,8 @@ import type {
 	LeaderboardEntry,
 	TelemetryFrameRow,
 	TelemetryMeta,
+	SessionInfo,
+	WeatherSummary,
 } from "$lib/types";
 import type { SessionMode } from "$lib/utils";
 
@@ -243,4 +245,40 @@ export function buildTrackStatusGradient(
 		stops.push(`${c} ${startPct}%`, `${c} ${endPct}%`);
 	}
 	return `background: linear-gradient(to right, ${stops.join(", ")})`;
+}
+
+export function sampleWeatherAtTime(
+	sessionInfo: SessionInfo | undefined,
+	timeSeconds: number,
+): WeatherSummary | null {
+	if (!sessionInfo) return null;
+	const ws = sessionInfo.weather_series;
+	if (!ws || !ws.t || ws.t.length === 0) {
+		return sessionInfo.weather ?? null;
+	}
+
+	// In ingested data, t represents minute intervals (0, 1, 2, ...) if step is 1 and max < 1000
+	const isMinuteIndexed =
+		ws.t.length > 1 && ws.t[1] - ws.t[0] === 1 && ws.t[ws.t.length - 1] < 1000;
+	const targetT = isMinuteIndexed ? timeSeconds / 60 : timeSeconds;
+
+	let closestIdx = 0;
+	let minDiff = Infinity;
+	for (let i = 0; i < ws.t.length; i++) {
+		const diff = Math.abs(ws.t[i] - targetT);
+		if (diff < minDiff) {
+			minDiff = diff;
+			closestIdx = i;
+		} else if (ws.t[i] > targetT) {
+			break;
+		}
+	}
+
+	return {
+		air_temp: ws.air_temp?.[closestIdx] ?? sessionInfo.weather?.air_temp ?? null,
+		track_temp: ws.track_temp?.[closestIdx] ?? sessionInfo.weather?.track_temp ?? null,
+		humidity: ws.humidity?.[closestIdx] ?? sessionInfo.weather?.humidity ?? null,
+		wind_speed: ws.wind_speed?.[closestIdx] ?? sessionInfo.weather?.wind_speed ?? null,
+		rainfall: ws.rainfall?.[closestIdx] ?? sessionInfo.weather?.rainfall ?? false,
+	};
 }

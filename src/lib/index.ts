@@ -1,8 +1,7 @@
 import { dev, building } from "$app/environment";
 
-// change this to false to load telemetry data from local filesystem
-// todo: move data to cloudflare r2
-const production = true;
+// Load from local filesystem in development mode, HuggingFace in production
+const production = !dev;
 
 export function generateParquetUrl(year: string, filename: string): string {
   if (production) {

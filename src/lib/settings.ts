@@ -1,5 +1,5 @@
 /**
- * AppSettings — typed localStorage preference store.
+ * AppSettings, a typed localStorage preference store.
  *
  * All reads / writes go through this single object so the rest of the app
  * never touches localStorage keys directly.
@@ -25,8 +25,8 @@ export interface AppSettingsValues {
 	 */
 	dataFrequency: 2 | 4 | 8;
 	/**
-	 * LiCO detection threshold — the maximum throttle % below which a segment
-	 * is considered "off-throttle" for Lift and Coast highlighting.
+	 * LiCO detection threshold. The maximum throttle % below which a segment
+	 * counts as "off-throttle" for Lift and Coast highlighting.
 	 * Applies to both the telemetry page and the replay page.
 	 */
 	licoThrottleSensitivity: number;
@@ -69,7 +69,7 @@ class Settings {
 		try {
 			window.localStorage.setItem(KEY, JSON.stringify(this._values));
 		} catch {
-			// Quota exceeded or private mode — silently fail.
+			// Quota exceeded or private mode. Fail silently.
 		}
 	}
 

@@ -57,7 +57,7 @@ def main():
             print(f"Warning: could not seed from existing metadata.json: {e}")
 
     if not os.path.exists(data_dir):
-        print(f"No data dir found — writing seeded metadata only.")
+        print("No data dir found, writing seeded metadata only.")
         years_list = [{'year': yr, 'rounds': rounds} for yr, rounds in sorted(years_map.items(), reverse=True)]
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         with open(output_path, 'w') as f:

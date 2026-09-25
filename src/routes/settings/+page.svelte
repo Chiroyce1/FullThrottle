@@ -6,9 +6,6 @@
 	import { browser } from "$app/environment";
 
 	// ── Reactive local mirrors of the settings ─────────────────────────────
-	// We keep local $state variables so Svelte can track changes. Each setter
-	// also writes back to the persistent settings class.
-
 	let speedInterp = $state(browser ? settings.speedInterpolation : true);
 	let throttleInterp = $state(browser ? settings.throttleInterpolation : true);
 	let brakeInterp = $state(browser ? settings.brakeInterpolation : true);
@@ -50,20 +47,10 @@
 		licoSensitivity = settings.licoThrottleSensitivity.toString();
 	}
 
-	// ── Label helpers ───────────────────────────────────────────────────────
-	const BOOL_OPTIONS = [
-		{ value: "true", label: "On" },
-		{ value: "false", label: "Off" },
-	];
-
 	const licoOptions = LICO_SENSITIVITY_OPTIONS.map((n) => ({
 		value: n.toString(),
 		label: `${n}%`,
 	}));
-
-	function boolLabel(v: boolean) {
-		return v ? "On" : "Off";
-	}
 
 	const DATA_FREQ_OPTIONS = [
 		{ value: "2", label: "2 Hz" },
@@ -80,9 +67,9 @@
 	/>
 </svelte:head>
 
-<main class="mx-auto w-full max-w-3xl flex-1 px-8 py-24">
+<main class="mx-auto w-full max-w-3xl flex-1 px-4 py-16 md:px-8 md:py-24">
 	<!-- Page header -->
-	<div class="mb-12">
+	<div class="mb-10">
 		<h1
 			class="mb-2 text-5xl font-black tracking-tighter text-primary uppercase"
 		>
@@ -93,13 +80,13 @@
 		</p>
 	</div>
 
-	<Separator class="mb-12 opacity-20" />
+	<Separator class="mb-10 opacity-20" />
 
 	<!-- ── Data Quality & Memory ────────────────────────────────────────── -->
-	<section class="mb-12">
-		<div class="mb-6">
+	<section class="mb-10">
+		<div class="mb-5">
 			<h2 class="text-sm font-bold text-primary uppercase">
-				Data Quality & Memory
+				Data Quality &amp; Memory
 			</h2>
 			<p class="mt-1 text-sm text-muted-foreground">
 				Select the telemetry refresh rate (Hz). Lower levels run smoother on
@@ -108,14 +95,12 @@
 		</div>
 
 		<div
-			class="flex items-center justify-between rounded-lg border border-divider bg-surface-raised/60 px-5 py-4"
+			class="flex items-center justify-between rounded-lg border border-divider bg-surface-raised/60 px-4 py-3.5 sm:px-5 sm:py-4"
 		>
 			<div class="flex flex-col gap-0.5">
-				<span class="text-sm font-bold text-on-surface"
-					>Telemetry Frequency</span
-				>
-				<span class="font-mono text-sm text-muted-foreground">
-					Applies to both the Replay and Telemetry pages
+				<span class="text-sm font-bold text-on-surface">Telemetry Frequency</span>
+				<span class="font-mono text-xs text-muted-foreground">
+					Applies to both Replay and Telemetry pages
 				</span>
 			</div>
 
@@ -124,120 +109,103 @@
 				options={DATA_FREQ_OPTIONS}
 				placeholder={`${dataFreq} Hz`}
 				searchPlaceholder="Search frequency..."
-				triggerClass="w-28 rounded-md border-divider bg-surface text-on-surface transition-all hover:border-red-600/50 focus:ring-1 focus:ring-red-600"
+				triggerClass="w-24 rounded-md border-divider bg-surface text-on-surface transition-all hover:border-red-600/50"
 				contentClass="rounded-md border-divider bg-surface"
 			/>
 		</div>
 	</section>
 
-	<Separator class="mb-12 opacity-20" />
+	<Separator class="mb-10 opacity-20" />
 
 	<!-- ── Replay Telemetry ─────────────────────────────────────────────── -->
-	<section class="mb-12">
-		<div class="mb-6">
+	<section class="mb-10">
+		<div class="mb-5">
 			<h2 class="text-sm font-bold text-primary uppercase">
-				Replay - Telemetry Interpolation
+				Replay — Telemetry Interpolation
 			</h2>
 			<p class="mt-1 text-sm text-muted-foreground">
-				When enabled, the animated throttle gauge on the replay page will
-				smoothly interpolate between the raw telemetry values.
+				When enabled, the animated gauges on the replay page smoothly
+				interpolate between raw telemetry values.
 			</p>
 		</div>
 
-		<div class="flex flex-col gap-5">
+		<div class="flex flex-col gap-3">
 			<!-- Speed interpolation -->
 			<div
-				class="flex items-center justify-between rounded-lg border border-divider bg-surface-raised/60 px-5 py-4"
+				class="flex items-center justify-between rounded-lg border border-divider bg-surface-raised/60 px-4 py-3.5 sm:px-5 sm:py-4"
 			>
 				<div class="flex flex-col gap-0.5">
-					<span class="text-sm font-bold text-on-surface"
-						>Speed Interpolation</span
-					>
-					<span class="font-mono text-sm text-muted-foreground">
-						Smooth the speed display between telemetry frames
+					<span class="text-sm font-bold text-on-surface">Speed Interpolation</span>
+					<span class="font-mono text-xs text-muted-foreground">
+						Smooth the speed display between frames
 					</span>
 				</div>
-
-				<SearchableSelect
-					bind:value={
-						() => speedInterp.toString(),
-						(v) => {
-							speedInterp = v === "true";
-						}
-					}
-					options={BOOL_OPTIONS}
-					placeholder={boolLabel(speedInterp)}
-					searchPlaceholder="Search option..."
-					triggerClass="w-28 rounded-md border-divider bg-surface text-on-surface transition-all hover:border-red-600/50 focus:ring-1 focus:ring-red-600"
-					contentClass="rounded-md border-divider bg-surface"
-				/>
+				<!-- Pill toggle -->
+				<div class="flex shrink-0 overflow-hidden rounded-md border border-divider bg-surface">
+					<button
+						class="px-3.5 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors {speedInterp ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}"
+						onclick={() => (speedInterp = true)}
+					>On</button>
+					<button
+						class="px-3.5 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors {!speedInterp ? 'bg-surface-overlay text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+						onclick={() => (speedInterp = false)}
+					>Off</button>
+				</div>
 			</div>
 
 			<!-- Throttle interpolation -->
 			<div
-				class="flex items-center justify-between rounded-lg border border-divider bg-surface-raised/60 px-5 py-4"
+				class="flex items-center justify-between rounded-lg border border-divider bg-surface-raised/60 px-4 py-3.5 sm:px-5 sm:py-4"
 			>
 				<div class="flex flex-col gap-0.5">
-					<span class="text-sm font-bold text-on-surface"
-						>Throttle Interpolation</span
-					>
-					<span class="font-mono text-sm text-muted-foreground">
-						Smooth the throttle gauge between telemetry frames
+					<span class="text-sm font-bold text-on-surface">Throttle Interpolation</span>
+					<span class="font-mono text-xs text-muted-foreground">
+						Smooth the throttle gauge between frames
 					</span>
 				</div>
-
-				<SearchableSelect
-					bind:value={
-						() => throttleInterp.toString(),
-						(v) => {
-							throttleInterp = v === "true";
-						}
-					}
-					options={BOOL_OPTIONS}
-					placeholder={boolLabel(throttleInterp)}
-					searchPlaceholder="Search option..."
-					triggerClass="w-28 rounded-md border-divider bg-surface text-on-surface transition-all hover:border-red-600/50 focus:ring-1 focus:ring-red-600"
-					contentClass="rounded-md border-divider bg-surface"
-				/>
+				<div class="flex shrink-0 overflow-hidden rounded-md border border-divider bg-surface">
+					<button
+						class="px-3.5 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors {throttleInterp ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}"
+						onclick={() => (throttleInterp = true)}
+					>On</button>
+					<button
+						class="px-3.5 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors {!throttleInterp ? 'bg-surface-overlay text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+						onclick={() => (throttleInterp = false)}
+					>Off</button>
+				</div>
 			</div>
 
 			<!-- Brake interpolation -->
 			<div
-				class="flex items-center justify-between rounded-lg border border-divider bg-surface-raised/60 px-5 py-4"
+				class="flex items-center justify-between rounded-lg border border-divider bg-surface-raised/60 px-4 py-3.5 sm:px-5 sm:py-4"
 			>
 				<div class="flex flex-col gap-0.5">
-					<span class="text-sm font-bold text-on-surface"
-						>Brake Interpolation</span
-					>
-					<span class="font-mono text-sm text-muted-foreground">
-						Smooth the brake gauge between telemetry frames
+					<span class="text-sm font-bold text-on-surface">Brake Interpolation</span>
+					<span class="font-mono text-xs text-muted-foreground">
+						Smooth the brake gauge between frames
 					</span>
 				</div>
-
-				<SearchableSelect
-					bind:value={
-						() => brakeInterp.toString(),
-						(v) => {
-							brakeInterp = v === "true";
-						}
-					}
-					options={BOOL_OPTIONS}
-					placeholder={boolLabel(brakeInterp)}
-					searchPlaceholder="Search option..."
-					triggerClass="w-28 rounded-md border-divider bg-surface text-on-surface transition-all hover:border-red-600/50 focus:ring-1 focus:ring-red-600"
-					contentClass="rounded-md border-divider bg-surface"
-				/>
+				<div class="flex shrink-0 overflow-hidden rounded-md border border-divider bg-surface">
+					<button
+						class="px-3.5 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors {brakeInterp ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}"
+						onclick={() => (brakeInterp = true)}
+					>On</button>
+					<button
+						class="px-3.5 py-1.5 font-mono text-xs font-bold uppercase tracking-wider transition-colors {!brakeInterp ? 'bg-surface-overlay text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+						onclick={() => (brakeInterp = false)}
+					>Off</button>
+				</div>
 			</div>
 		</div>
 	</section>
 
-	<Separator class="mb-12 opacity-20" />
+	<Separator class="mb-10 opacity-20" />
 
 	<!-- ── LiCO ─────────────────────────────────────────────────────────── -->
-	<section class="mb-12">
-		<div class="mb-6">
+	<section class="mb-10">
+		<div class="mb-5">
 			<h2 class="text-sm font-bold text-primary uppercase">
-				LiCO - Lift and Coast Detection
+				LiCO — Lift and Coast Detection
 			</h2>
 			<p class="mt-1 text-sm text-muted-foreground">
 				Segments where throttle is below this threshold and the driver is not
@@ -246,13 +214,11 @@
 		</div>
 
 		<div
-			class="flex items-center justify-between rounded-lg border border-divider bg-surface-raised/60 px-5 py-4"
+			class="flex items-center justify-between rounded-lg border border-divider bg-surface-raised/60 px-4 py-3.5 sm:px-5 sm:py-4"
 		>
 			<div class="flex flex-col gap-0.5">
-				<span class="text-sm font-bold text-on-surface"
-					>Throttle Sensitivity</span
-				>
-				<span class="font-mono text-sm text-muted-foreground">
+				<span class="text-sm font-bold text-on-surface">Throttle Sensitivity</span>
+				<span class="font-mono text-xs text-muted-foreground">
 					Maximum throttle % to classify a segment as LiCO
 				</span>
 			</div>
@@ -262,13 +228,13 @@
 				options={licoOptions}
 				placeholder={`${licoSensitivity}%`}
 				searchPlaceholder="Search sensitivity..."
-				triggerClass="w-28 rounded-md border-divider bg-surface text-on-surface transition-all hover:border-red-600/50 focus:ring-1 focus:ring-red-600"
+				triggerClass="w-24 rounded-md border-divider bg-surface text-on-surface transition-all hover:border-red-600/50"
 				contentClass="rounded-md border-divider bg-surface"
 			/>
 		</div>
 	</section>
 
-	<Separator class="mb-12 opacity-20" />
+	<Separator class="mb-10 opacity-20" />
 
 	<!-- ── Reset ─────────────────────────────────────────────────────────── -->
 	<div class="flex justify-end">

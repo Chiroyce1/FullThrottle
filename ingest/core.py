@@ -218,17 +218,8 @@ def archive_data(year, r_type, round_id, session_id, day=1, output_dirs=None):
     if is_quali:
         try:
             results = session.results
-            quali_data = {}
             for _, res in results.iterrows():
                 drv = str(int(res['DriverNumber']))
-                entry = {}
-                for phase in ['Q1', 'Q2', 'Q3']:
-                    if phase in res and pd.notna(res[phase]):
-                        entry[phase.lower()] = res[phase].total_seconds()
-                    else:
-                        entry[phase.lower()] = None
-                quali_data[drv] = entry
-
                 # Fix driver metadata with proper qualifying position from results
                 if drv in metadata['drivers']:
                     try:
@@ -241,12 +232,8 @@ def archive_data(year, r_type, round_id, session_id, day=1, output_dirs=None):
                             float(res['GridPosition']))
                     except (ValueError, TypeError):
                         metadata['drivers'][drv]['grid'] = 0
-
-            metadata['qualifying'] = quali_data
-            print(
-                f"Extracted qualifying results for {len(quali_data)} drivers")
         except Exception as e:
-            print(f"Warning: Could not extract qualifying results: {e}")
+            print(f"Warning: Could not fix qualifying positions: {e}")
 
     # 2. Final Global Merge - keep full 8Hz data, no downsampling
     if not all_drivers_telemetry:
@@ -318,6 +305,16 @@ def archive_data(year, r_type, round_id, session_id, day=1, output_dirs=None):
     final_dataframe = final_dataframe.rename(columns=column_mapping)
     metadata['session_info']['totalLaps'] = int(final_dataframe['lap_number'].max(
     )) if 'lap_number' in final_dataframe.columns else None
+
+    # Extra metadata blocks (weather series, full results, quali phases).
+    # backfill.py writes these same blocks into older files.
+    try:
+        from enrichments.weather import add_weather
+        from enrichments.results import add_results
+        add_weather(session, metadata)
+        add_results(session, metadata)
+    except Exception as enrich_err:
+        print(f"Warning: could not write extra metadata: {enrich_err}")
 
     output_dirs = output_dirs or [folder_path]
 

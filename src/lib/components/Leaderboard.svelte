@@ -86,7 +86,7 @@
 		</h3>
 	</div>
 
-	<div class="no-scrollbar w-full flex-1 space-y-0.5 overflow-y-auto p-1 mb-12">
+	<div class="no-scrollbar w-full flex-1 space-y-0.5 overflow-y-auto p-1">
 		{#each drivers as { id, row, meta }, index}
 			{@const qualiEntry = qualifyingData?.[id]}
 			{@const phase = highestPhase(qualiEntry)}
@@ -138,7 +138,7 @@
 								>
 							{:else if row.drs > 8}
 								<span
-									class="w-max rounded-sm border border-green-500/50 bg-green-500/20 px-1 font-mono text-[9px] font-black tracking-widest text-green-700"
+									class="w-max rounded-sm border border-green-500/50 bg-green-500/20 px-1 font-mono text-[9px] font-black tracking-widest text-green-400"
 									>DRS</span
 								>
 							{/if}
@@ -213,9 +213,9 @@
 							</div>
 						{/if}
 
-						<div class="flex min-w-0 items-center gap-3 sm:gap-4">
+						<div class="flex min-w-0 items-center gap-1.5 sm:gap-4">
 							<div
-								class="flex min-w-18 flex-col items-end justify-center gap-0.5"
+								class="flex min-w-16 sm:min-w-18 flex-col items-end justify-center gap-0.5"
 							>
 								{#if row._cached_best_lap}
 									<div class="flex items-center gap-1.5">
@@ -249,41 +249,41 @@
 							</div>
 
 							{#if row._cached_best_lap || row._cached_last_lap || row._sector1_state !== "none"}
-								<div class="flex min-w-32 flex-col items-end gap-1">
-									<div class="flex items-center justify-end gap-1">
+								<div class="flex min-w-0 sm:min-w-32 shrink-0 flex-col items-end gap-0.5 sm:gap-1">
+									<div class="flex items-center justify-end gap-0.5 sm:gap-1">
 										<div
-											class="h-1.5 w-9 rounded-[1px] {getSectorColor(
+											class="h-1.5 w-6 sm:w-9 rounded-[1px] {getSectorColor(
 												row._sector1_state,
 											)}"
 										></div>
 										<div
-											class="h-1.5 w-9 rounded-[1px] {getSectorColor(
+											class="h-1.5 w-6 sm:w-9 rounded-[1px] {getSectorColor(
 												row._sector2_state,
 											)}"
 										></div>
 										<div
-											class="h-1.5 w-9 rounded-[1px] {getSectorColor(
+											class="h-1.5 w-6 sm:w-9 rounded-[1px] {getSectorColor(
 												row._sector3_state,
 											)}"
 										></div>
 									</div>
-									<div class="flex items-center justify-end gap-1">
+									<div class="flex items-center justify-end gap-0.5 sm:gap-1">
 										<span
-											class="w-9 px-0.5 py-px text-center font-mono text-[9px] font-black tabular-nums {getSectorTimeClass(
+											class="w-6 sm:w-9 px-0.5 py-px text-center font-mono text-[8px] sm:text-[9px] font-black tabular-nums {getSectorTimeClass(
 												row._sector1_state,
 											)}"
 										>
 											{formatSectorTime(row._sector1_time)}
 										</span>
 										<span
-											class="w-9 px-0.5 py-px text-center font-mono text-[9px] font-black tabular-nums {getSectorTimeClass(
+											class="w-6 sm:w-9 px-0.5 py-px text-center font-mono text-[8px] sm:text-[9px] font-black tabular-nums {getSectorTimeClass(
 												row._sector2_state,
 											)}"
 										>
 											{formatSectorTime(row._sector2_time)}
 										</span>
 										<span
-											class="w-9 px-0.5 py-px text-center font-mono text-[9px] font-black tabular-nums {getSectorTimeClass(
+											class="w-6 sm:w-9 px-0.5 py-px text-center font-mono text-[8px] sm:text-[9px] font-black tabular-nums {getSectorTimeClass(
 												row._sector3_state,
 											)}"
 										>
@@ -294,7 +294,7 @@
 							{/if}
 						</div>
 
-						<div class="flex w-14 flex-col items-end gap-0.5">
+						<div class="flex w-11 sm:w-14 shrink-0 flex-col items-end gap-0.5">
 							<span
 								class="flex items-center gap-1 font-mono text-[9px] text-on-surface"
 							>
@@ -304,7 +304,7 @@
 										>{row.tyre_life}L</span
 									>
 								{/if}
-								<CompoundBadge compound={row.compound || "UNKNOWN"} size={26} />
+								<CompoundBadge compound={row.compound || "UNKNOWN"} size={22} />
 							</span>
 						</div>
 					{/if}

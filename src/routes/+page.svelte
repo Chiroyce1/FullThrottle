@@ -5,39 +5,54 @@
 	import SessionPicker from "$lib/components/SessionPicker.svelte";
 	import type { PageData } from "./$types";
 	import posthog from "posthog-js";
+	import { latestYear, latestRound, latestSession } from "$lib/metadata-types";
 
 	const { data }: { data: PageData } = $props();
+
+	// Latest available session for the quick-jump card
+	const latestYearEntry = $derived(latestYear(data.years));
+	const latestRoundEntry = $derived(latestRound(latestYearEntry));
+	const latestSessionEntry = $derived(latestSession(latestRoundEntry));
+	const latestReplayUrl = $derived.by(() => {
+		if (!latestYearEntry || !latestRoundEntry || !latestSessionEntry) return null;
+		return `/replay/${latestYearEntry.year}/${latestRoundEntry.round}/${latestSessionEntry.code}`;
+	});
+	const latestLabel = $derived.by(() => {
+		if (!latestRoundEntry || !latestSessionEntry) return null;
+		return `${latestRoundEntry.name} · ${latestSessionEntry.label}`;
+	});
+
 
 	const features = [
 		{
 			tag: "LIVE",
-			title: "Rich telemetry charts",
+			title: "Telemetry charts",
 			desc: "Speed, throttle, brake, RPM, gear changes, and Lift & Coast (LiCO) synced as you scrub",
 		},
 		{
 			tag: "LIVE",
-			title: "Reactive Track Map",
-			desc: "Synced with telemetry charts, the map shows exactly where the car is on track",
+			title: "Track map",
+			desc: "Synced with the telemetry charts, the map shows where the car is on track",
 		},
 		{
 			tag: "LIVE",
-			title: "Full Session Replay",
-			desc: "Replay any F1 session (Race, Quali, FP) from any year. Includes live leaderboards, full track maps and telemetry playback.",
+			title: "Session replay",
+			desc: "Replay any F1 session (Race, Quali, FP) from any year, with leaderboards, track maps and telemetry playback.",
 		},
 		{
 			tag: "LIVE",
-			title: "Cross-Session Compare",
-			desc: "Overlay any two drivers across any sessions. Lap vs lap, compound vs compound, year vs year",
+			title: "Cross-session compare",
+			desc: "Overlay any two drivers across sessions. Lap vs lap, compound vs compound, year vs year",
 		},
 		{
 			tag: "LIVE",
-			title: "Multiple Driver Comparisons",
+			title: "Multi-driver compare",
 			desc: "Compare laps on the same track across multiple drivers and sessions",
 		},
 		{
 			tag: "Soon",
-			title: "Corner Analysis",
-			desc: "Minimum speeds, lift and coast, and more stats per driver per lap, coming soon!",
+			title: "Corner analysis",
+			desc: "Minimum speeds, lift and coast, and more stats per driver per lap. Still to come.",
 		},
 	] as const;
 
@@ -85,15 +100,15 @@
 				Full<span class="text-primary">Throttle</span>
 			</h1>
 			<p class="text-md font-mono text-muted-foreground uppercase">
-				<span>The Ultimate</span>
-				<span class="text-primary">F1 Telemetry</span> Experience
+				<span>F1 Telemetry</span>
+				<span class="text-primary">in the browser</span>
 			</p>
 		</div>
 
 		<p class="max-w-2xl text-xl leading-relaxed text-muted-foreground">
-			A <span class="font-bold text-foreground">Free</span>
-			web platform for F1 insights. <br />
-			All telemetry sourced from
+			<span class="font-bold text-foreground">Free and open-source</span>
+			F1 telemetry charts and session replays. <br />
+			Telemetry data sourced from
 			<span class="text-foreground"
 				><a
 					href="https://github.com/theOehrly/Fast-F1"
@@ -127,6 +142,33 @@
 				Session Replay
 			</Button>
 		</div>
+
+		<!-- Latest session quick-jump -->
+		{#if latestReplayUrl && latestLabel}
+			<a
+				href={latestReplayUrl}
+				class="group flex items-center gap-3 rounded-xl border border-divider/60 bg-surface-raised/40 px-4 py-3 text-left transition-all hover:border-divider hover:bg-surface-raised"
+			>
+				<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+					<!-- play icon -->
+					<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+				</div>
+				<div class="min-w-0">
+					<div class="font-mono text-[9px] font-bold tracking-widest text-on-surface-subtle uppercase">Latest session</div>
+					<div class="truncate text-sm font-bold text-on-surface transition-colors group-hover:text-primary">{latestLabel}</div>
+				</div>
+				<svg class="ml-auto shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+			</a>
+		{/if}
+
+		<p class="font-mono text-xs tracking-wider text-muted-foreground lowercase">
+			built by
+			<a
+				href="https://github.com/chiroyce1"
+				target="_blank"
+				class="text-foreground hover:underline">chiroyce</a
+			>
+		</p>
 	</section>
 
 	<Separator class="opacity-10" />
@@ -135,6 +177,8 @@
 	<section class="w-full mb-18">
 		<SessionPicker years={data.years} />
 	</section>
+
+	<Separator class="opacity-10" />
 
 	<!-- Feature grid -->
 	<section class="w-full">

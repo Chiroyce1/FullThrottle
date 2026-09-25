@@ -23,9 +23,19 @@ export function extractTrackPath(
 	lapPointCounts: Record<string, Record<number, number>>,
 	preferredDriverId: string,
 ): TrackPoint[] {
+	// If a preferred driver (e.g. race winner) is provided, test their best lap first
+	if (preferredDriverId && grouped[preferredDriverId]) {
+		const best = findBestLap(grouped[preferredDriverId]);
+		if (best) {
+			const path = extractLapPath(grouped[preferredDriverId], best.lapNumber);
+			if (isConsistentPath(path)) return path;
+		}
+	}
+
 	const fastest = rankByBestLap(grouped);
-	for (let i = 0; i < Math.min(2, fastest.length); i++) {
+	for (let i = 0; i < fastest.length; i++) {
 		const c = fastest[i];
+		if (c.driverId === preferredDriverId) continue;
 		const path = extractLapPath(grouped[c.driverId] ?? [], c.lapNumber);
 		if (isConsistentPath(path)) return path;
 	}
@@ -33,7 +43,7 @@ export function extractTrackPath(
 	const densest = findDensestLap(lapPointCounts);
 	if (densest) {
 		const path = extractLapPath(grouped[densest.driverId] ?? [], densest.lapNumber);
-		if (path.length > 0) return path;
+		if (path.length > 0 && isConsistentPath(path)) return path;
 	}
 
 	// Last resort: sample every 10th point from the preferred (or first) driver
@@ -46,8 +56,8 @@ export function extractTrackPath(
 	const trace = grouped[fallbackId];
 	const path: TrackPoint[] = [];
 	for (let i = 0; i < trace.length; i += 10) {
-		if (trace[i].x !== undefined && trace[i].y !== undefined) {
-			path.push({ x: trace[i].x, y: trace[i].y });
+		if (isValidCoord(trace[i].x, trace[i].y)) {
+			path.push({ x: trace[i].x as number, y: trace[i].y as number });
 		}
 	}
 	return path;
@@ -106,7 +116,9 @@ function findBestLap(trace: TelemetryRow[]): { lapNumber: number; time: number }
 
 		if (lap > currentLap) {
 			const duration = time - lapStart;
-			if (duration > 20 && duration < 300 && duration < bestLapTime) {
+			// Real Grand Prix racing laps are between 45s and 300s.
+			// Shorter durations indicate pit exits, incomplete/aborted laps, or timing dropouts.
+			if (duration >= 45 && duration < 300 && duration < bestLapTime) {
 				bestLapTime = duration;
 				bestLapNumber = currentLap;
 			}
@@ -130,16 +142,31 @@ function extractLapPath(trace: TelemetryRow[], lapNumber: number): TrackPoint[] 
 	return removeOutliers(path);
 }
 
-function isConsistentPath(path: TrackPoint[]): boolean {
+export function isConsistentPath(path: TrackPoint[]): boolean {
 	if (path.length < 80) return false;
 
 	const stepDistances: number[] = [];
+	let totalDist = 0;
 	for (let i = 1; i < path.length; i++) {
 		const dist = Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y);
-		if (Number.isFinite(dist) && dist > 0) stepDistances.push(dist);
+		if (Number.isFinite(dist) && dist > 0) {
+			stepDistances.push(dist);
+			totalDist += dist;
+		}
 	}
 
 	if (stepDistances.length < Math.max(20, Math.floor(path.length * 0.5))) return false;
+
+	// In FastF1 coordinates (decimeters), modern Grand Prix circuits are 3.3km - 7.0km (33,000 - 70,000 units).
+	// Require at least 18,000 units (~1.8km) to reject partial lap snippets.
+	if (totalDist < 18000) return false;
+
+	// Circuit closure check: A complete lap must finish near where it started.
+	const closureDist = Math.hypot(
+		path[path.length - 1].x - path[0].x,
+		path[path.length - 1].y - path[0].y,
+	);
+	if (closureDist > Math.max(2000, totalDist * 0.10)) return false;
 
 	const sorted = [...stepDistances].sort((a, b) => a - b);
 	const median = sorted[Math.floor(sorted.length / 2)] ?? 0;

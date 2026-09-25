@@ -1,410 +1,691 @@
 <script lang="ts">
-	import { onMount, onDestroy } from "svelte";
-	import { slide } from "svelte/transition";
-	import TrackMap from "$lib/components/TrackMap.svelte";
-	import type {
-		ChartHighlight,
-		ChartSeries,
-	} from "$lib/components/SyncedTelemetryChart.svelte";
-	import { Button } from "$lib/components/ui/button";
-	import ModeToggle from "$lib/components/ModeToggle.svelte";
-	import { settings } from "$lib/settings";
-	import {
-		LICO_THROTTLE_THRESHOLD,
-		LICO_MIN_DISTANCE,
-		LICO_COLOR,
-	} from "$lib/constants";
-	import SlotRow from "./SlotRow.svelte";
-	import TelemetryHUD from "./TelemetryHUD.svelte";
-	import TelemetryCharts from "./TelemetryCharts.svelte";
-	import TelemetryEmptyState from "./TelemetryEmptyState.svelte";
-	import { loadTrackCorners, type TrackCorner } from "$lib/track-corners";
+  import { onMount, onDestroy } from "svelte";
+  import { slide } from "svelte/transition";
+  import TrackMap from "$lib/components/TrackMap.svelte";
+  import type {
+    ChartHighlight,
+    ChartSeries,
+  } from "$lib/components/SyncedTelemetryChart.svelte";
+  import { Button } from "$lib/components/ui/button";
+  import ModeToggle from "$lib/components/ModeToggle.svelte";
+  import { settings } from "$lib/settings";
+  import {
+    LICO_THROTTLE_THRESHOLD,
+    LICO_MIN_DISTANCE,
+    LICO_COLOR,
+  } from "$lib/constants";
+  import SlotRow from "./SlotRow.svelte";
+  import LapStats from "./LapStats.svelte";
+  import TelemetryCharts from "./TelemetryCharts.svelte";
+  import TelemetryEmptyState from "./TelemetryEmptyState.svelte";
+  import { loadTrackCorners, type TrackCorner } from "$lib/track-corners";
+  import type { ValidLap } from "$lib/types";
 
-	import { TelemetryState, type YearEntry } from "./state";
-	import { rowAtDist, buildSpeedDeltaSegmentsN } from "./telemetry-utils";
+  import { TelemetryState, type YearEntry } from "./state";
+  import { rowAtDist, buildSpeedDeltaSegmentsN } from "./telemetry-utils";
+  import type { SampleRate } from "$lib/TelemetryEngine.svelte";
 
-	let years = $state<YearEntry[]>([]);
-	let innerWidth = $state(1024);
-	let selectorsExpanded = $state(true);
+  let years = $state<YearEntry[]>([]);
+  let innerWidth = $state(1024);
+  let selectorsExpanded = $state(true);
+  let sidebarWidth = $state(272); // px — default ~md:w-68
+  let isResizing = $state(false);
+  // Mobile-only tab navigation (desktop keeps the side-by-side layout)
+  let mobileTab = $state<"setup" | "charts">("setup");
 
-	onMount(() => {
-		selectorsExpanded = window.innerWidth >= 768;
+  function startResize(e: PointerEvent) {
+    e.preventDefault();
+    isResizing = true;
+    const startX = e.clientX;
+    const startW = sidebarWidth;
 
-		fetch("/metadata.json")
-			.then((r) => r.json() as Promise<{ years: YearEntry[] }>)
-			.then((d) => {
-				years = d.years;
-			});
+    function onMove(ev: PointerEvent) {
+      // dragging left (negative delta) = wider sidebar (capped strictly at 50/50 split)
+      const delta = startX - ev.clientX;
+      const maxW = Math.floor((innerWidth - 48) * 0.5);
+      const minW = Math.min(200, maxW);
+      sidebarWidth = Math.max(minW, Math.min(maxW, startW + delta));
+    }
+    function onUp() {
+      isResizing = false;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
 
-		const onPageHide = () => tm.dispose();
-		window.addEventListener("pagehide", onPageHide);
-		return () => {
-			window.removeEventListener("pagehide", onPageHide);
-		};
-	});
+  onMount(() => {
+    const isMobile =
+      window.innerWidth < 768 ||
+      ("ontouchstart" in window && window.innerWidth < 1024);
+    selectorsExpanded = !isMobile;
 
-	const tm = new TelemetryState(() => years);
-	onDestroy(() => tm.dispose());
+    fetch("/metadata.json")
+      .then((r) => r.json() as Promise<{ years: YearEntry[] }>)
+      .then((d) => {
+        years = d.years;
+        tm.init(settings.dataFrequency as SampleRate, !isMobile);
+      });
 
-	let xDomain = $state<[number, number] | null>(null);
-	let hoverDist = $state<number | null>(null);
+    const onPageHide = () => tm.dispose();
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  });
 
-	function loadData() {
-		if (!tm.canLoadData) return;
-		hoverDist = null;
-		xDomain = null;
-		tm.load(settings.dataFrequency);
-	}
+  const tm = new TelemetryState(() => years);
+  onDestroy(() => tm.dispose());
 
-	let trackCorners = $state<TrackCorner[]>([]);
-	let lastCornerLocation = $state("");
-	let showCorners = $state(true);
+  let xDomain = $state<[number, number] | null>(null);
+  let hoverDist = $state<number | null>(null);
 
-	$effect(() => {
-		const rd = tm.roundData(0);
-		const location = rd?.location || "";
-		if (location === lastCornerLocation) return;
-		lastCornerLocation = location;
+  async function loadData() {
+    if (!tm.canLoadData || tm.isLoading) return;
+    // On mobile, immediately switch to the charts tab so the user sees instant feedback
+    if (innerWidth < 768) {
+      mobileTab = "charts";
+    }
+    hoverDist = null;
+    xDomain = null;
+    await tm.load(settings.dataFrequency);
+    // Ensure we are on the charts tab if data loaded
+    if (innerWidth < 768 && tm.slots.some((s) => s.hasLoaded)) {
+      mobileTab = "charts";
+    }
+  }
 
-		if (!location) {
-			trackCorners = [];
-			return;
-		}
+  let trackCorners = $state<TrackCorner[]>([]);
+  let lastCornerLocation = $state("");
+  let showCorners = $state(true);
 
-		loadTrackCorners(location).then((data) => {
-			trackCorners = data?.corners ?? [];
-		});
-	});
+  $effect(() => {
+    const rd = tm.roundData(0);
+    const location = rd?.location || "";
+    if (location === lastCornerLocation) return;
+    lastCornerLocation = location;
 
-	const allSeries = $derived<ChartSeries[]>(
-		tm.slots
-			.map((_, sid) => ({
-				data: tm.lapData(sid),
-				color: tm.color(sid),
-				label: tm.driverTla(sid),
-			}))
-			.filter((s) => s.data.length > 0),
-	);
+    if (!location) {
+      trackCorners = [];
+      return;
+    }
 
-	const allLico = $derived.by<ChartHighlight[]>(() => {
-		const out: ChartHighlight[] = [];
-		for (const data of allSeries.map((s) => s.data)) {
-			let cur: ChartHighlight | null = null;
-			for (const row of data) {
-				const isLico =
-					(row.throttle || 0) < LICO_THROTTLE_THRESHOLD && !row.brake;
-				if (isLico) {
-					const d = row.distance ?? 0;
-					if (!cur)
-						cur = { start: d, end: d, color: LICO_COLOR, label: "LiCO" };
-					else cur.end = d;
-				} else if (cur) {
-					if (cur.end - cur.start > LICO_MIN_DISTANCE) out.push(cur);
-					cur = null;
-				}
-			}
-			if (cur && cur.end - cur.start > LICO_MIN_DISTANCE) out.push(cur);
-		}
-		return out;
-	});
+    loadTrackCorners(location).then((data) => {
+      trackCorners = data?.corners ?? [];
+    });
+  });
 
-	const speedDeltaSegments = $derived.by(() => {
-		const datasets = tm.slots
-			.map((_, sid) => ({ data: tm.lapData(sid), color: tm.color(sid) }))
-			.filter((d) => d.data.length >= 2);
+  const allSeries = $derived<ChartSeries[]>(
+    tm.slots
+      .map((_, sid) => ({
+        data: tm.lapData(sid),
+        color: tm.color(sid),
+        label: tm.driverTla(sid),
+      }))
+      .filter((s) => s.data.length > 0),
+  );
 
-		if (datasets.length < 2) return [];
-		return buildSpeedDeltaSegmentsN(datasets);
-	});
+  const allLico = $derived.by<ChartHighlight[]>(() => {
+    const out: ChartHighlight[] = [];
+    for (const data of allSeries.map((s) => s.data)) {
+      let cur: ChartHighlight | null = null;
+      for (const row of data) {
+        const isLico =
+          (row.throttle || 0) < LICO_THROTTLE_THRESHOLD && !row.brake;
+        if (isLico) {
+          const d = row.distance ?? 0;
+          if (!cur)
+            cur = { start: d, end: d, color: LICO_COLOR, label: "LiCO" };
+          else cur.end = d;
+        } else if (cur) {
+          if (cur.end - cur.start > LICO_MIN_DISTANCE) out.push(cur);
+          cur = null;
+        }
+      }
+      if (cur && cur.end - cur.start > LICO_MIN_DISTANCE) out.push(cur);
+    }
+    return out;
+  });
 
-	const hudRows = $derived(
-		tm.slots.map((_, sid) => rowAtDist(tm.lapData(sid), hoverDist)),
-	);
-	const slotColors = $derived(tm.slots.map((_, sid) => tm.color(sid)));
-	const slotTlas = $derived(tm.slots.map((_, sid) => tm.driverTla(sid)));
+  const speedDeltaSegments = $derived.by(() => {
+    const datasets = tm.slots
+      .map((_, sid) => ({ data: tm.lapData(sid), color: tm.color(sid) }))
+      .filter((d) => d.data.length >= 2);
 
-	const activeDots = $derived.by(() => {
-		if (hoverDist === null) return [];
+    if (datasets.length < 2) return [];
+    return buildSpeedDeltaSegmentsN(datasets);
+  });
 
-		const samples = tm.slots
-			.map((_, sid) => {
-				const data = tm.lapData(sid);
-				const row = rowAtDist(data, hoverDist);
-				if (!row || !Number.isFinite(row.x) || !Number.isFinite(row.y))
-					return null;
-				if (row.x === 0 && row.y === 0) return null;
-				return { sid, row, speed: row.speed ?? 0 };
-			})
-			.filter((s): s is NonNullable<typeof s> => s !== null);
+  const hudRows = $derived(
+    tm.slots.map((_, sid) => rowAtDist(tm.lapData(sid), hoverDist)),
+  );
+  const slotTlas = $derived(tm.slots.map((_, sid) => tm.driverTla(sid)));
 
-		if (samples.length === 0) return [];
+  const activeDots = $derived.by(() => {
+    if (hoverDist === null) return [];
 
-		const winner = samples.reduce(
-			(fastest, s) => (s.speed > fastest.speed ? s : fastest),
-			samples[0],
-		);
-		const speeds = samples.map((s) => s.speed);
-		const speedGap = Math.round(Math.max(...speeds) - Math.min(...speeds));
+    const samples = tm.slots
+      .map((_, sid) => {
+        const data = tm.lapData(sid);
+        const row = rowAtDist(data, hoverDist);
+        if (!row || !Number.isFinite(row.x) || !Number.isFinite(row.y))
+          return null;
+        if (row.x === 0 && row.y === 0) return null;
+        return { sid, row, speed: row.speed ?? 0 };
+      })
+      .filter((s): s is NonNullable<typeof s> => s !== null);
 
-		const label =
-			samples.length === 1 || speedGap === 0
-				? tm.driverTla(winner.sid)
-				: `${tm.driverTla(winner.sid)} +${speedGap}km/h`;
+    if (samples.length === 0) return [];
 
-		return [
-			{
-				id: "hover-cursor",
-				label,
-				x: winner.row.x,
-				y: winner.row.y,
-				z: winner.row.z,
-				color: "#ffffff",
-			},
-		];
-	});
+    const winner = samples.reduce(
+      (fastest, s) => (s.speed > fastest.speed ? s : fastest),
+      samples[0],
+    );
+    const speeds = samples.map((s) => s.speed);
+    const speedGap = Math.round(Math.max(...speeds) - Math.min(...speeds));
 
-	// ── Load button label + class logic ──────────────────────────────────
+    const label =
+      samples.length === 1 || speedGap === 0
+        ? tm.driverTla(winner.sid)
+        : `${tm.driverTla(winner.sid)} +${speedGap}km/h`;
 
-	const loadButtonLabel = $derived.by(() => {
-		if (tm.loadFeedback === "loading" || tm.isLoading) return "Loading…";
-		if (tm.loadFeedback === "success") return "✓ Loaded";
-		if (tm.loadFeedback === "error") return "✕ Error";
-		return "Load Data";
-	});
+    return [
+      {
+        id: "hover-cursor",
+        label,
+        x: winner.row.x,
+        y: winner.row.y,
+        z: winner.row.z,
+        color: "#ffffff",
+      },
+    ];
+  });
 
-	const loadButtonClass = $derived.by(() => {
-		const base =
-			"h-8 border px-5 font-mono text-xs font-black tracking-widest uppercase transition-all";
-		if (tm.loadFeedback === "success")
-			return `${base} border-green-500 bg-green-500/15 text-green-400`;
-		if (tm.loadFeedback === "error")
-			return `${base} border-red-500 bg-red-500/15 text-red-400`;
-		return `${base} border-primary bg-primary text-primary-foreground hover:bg-transparent hover:text-primary disabled:opacity-40`;
-	});
+  // ── Per-slot selected lap data (for LapStats) ───────────────────────
 
-	// ── Add Driver button label + class logic ────────────────────────────
+  // Grab the ValidLap object for a slot's currently selected lap from metadata.
+  function selectedLapData(sid: number): ValidLap | null {
+    const slot = tm.slots[sid];
+    if (!slot?.driver || !slot.lap || !slot.meta) return null;
+    const driverMeta = slot.meta.drivers[slot.driver];
+    if (!driverMeta?.valid_laps) return null;
+    return driverMeta.valid_laps.find((l: ValidLap) => l.lap_number === slot.lap) ?? null;
+  }
 
-	const addDriverLabel = $derived(
-		tm.addDriverFeedback === "added" ? "✓ Added" : "Add Driver",
-	);
+  const lapStatsSlots = $derived(
+    tm.slots.map((_, sid) => ({
+      tla: tm.driverTla(sid),
+      color: tm.color(sid),
+      lap: selectedLapData(sid),
+    })),
+  );
 
-	const addDriverClass = $derived.by(() => {
-		const base =
-			"h-8 border px-3 font-mono text-xs font-black tracking-widest uppercase transition-all duration-200";
-		if (tm.addDriverFeedback === "added")
-			return `${base} border-green-500 bg-green-500/15 text-green-400`;
-		return `${base} border-divider bg-surface text-on-surface hover:border-primary hover:bg-primary/10 hover:text-primary`;
-	});
+  // ── Add Driver button ────────────────────────────────────────────────
+
+  const addDriverLabel = $derived(
+    tm.addDriverFeedback === "added" ? "✓ Added" : "Add Driver",
+  );
+
+  const addDriverClass = $derived.by(() => {
+    const base =
+      "h-8 border px-3 font-mono text-xs font-black tracking-widest uppercase transition-all duration-200";
+    if (tm.addDriverFeedback === "added")
+      return `${base} border-green-500 bg-green-500/15 text-green-400`;
+    return `${base} border-divider bg-surface text-on-surface hover:border-primary hover:bg-primary/10 hover:text-primary`;
+  });
+  const loadButtonClass = $derived.by(() => {
+    const base =
+      "h-8 border px-5 font-mono text-xs font-black tracking-widest uppercase transition-all disabled:opacity-40";
+    if (tm.needsReloadAny) {
+      return `${base} border-amber-400 bg-amber-400 text-black hover:bg-transparent hover:text-amber-400 animate-pulse`;
+    }
+    return `${base} border-primary bg-primary text-primary-foreground hover:bg-transparent hover:text-primary`;
+  });
 </script>
 
 <svelte:head>
-	<title>FullThrottle - Telemetry</title>
+  <title>FullThrottle - Telemetry</title>
 </svelte:head>
 
 <svelte:window bind:innerWidth />
 
-<div class="flex min-h-screen w-full flex-col bg-surface text-foreground">
-	<!-- ── HEADER ──────────────────────────────────────────────────────── -->
-	<header class="shrink-0 border-b border-divider bg-surface">
-		<!-- Top bar -->
-		<div
-			class="flex flex-col md:flex-row md:items-center justify-between border-b border-divider px-4 py-2.5 gap-3 md:gap-0"
-		>
-			<div
-				class="font text-xl font-bold text-primary flex justify-between md:justify-start gap-4 items-center"
-			>
-				<a href="/">FullThrottle</a>
-				<ModeToggle />
-			</div>
+<div
+  class="flex h-screen max-h-screen w-full flex-col bg-surface text-foreground overflow-hidden"
+  class:select-none={isResizing}
+  style={isResizing ? "cursor:col-resize" : ""}
+>
+  <!-- ── HEADER ──────────────────────────────────────────────────────── -->
+  <header class="shrink-0 bg-surface">
+    <!-- Top bar -->
+    <div
+      class="flex flex-col md:flex-row md:items-center justify-between border-b border-divider px-4 py-2.5 gap-3 md:gap-0"
+    >
+      <div
+        class="text-xl font-bold text-primary flex justify-between md:justify-start gap-4 items-center"
+      >
+        <a href="/">FullThrottle</a>
+        <ModeToggle />
+      </div>
 
-			<div class="flex flex-wrap items-center gap-3">
-				{#if tm.needsReloadAny && !tm.isLoading}
-					<span
-						class="font-mono text-[10px] text-amber-400 uppercase animate-pulse"
-					>
-						Selection changed — hit Load Data
-					</span>
-				{/if}
-				{#if tm.isLoading}
-					<div class="flex items-center gap-2">
-						<div
-							class="h-3 w-3 animate-spin rounded-full border border-divider border-t-foreground"
-						></div>
-						<span class="font-mono text-[10px] text-on-surface-subtle uppercase"
-							>{settings.dataFrequency} Hz…</span
-						>
-					</div>
-				{/if}
-				<label
-					class="flex cursor-pointer items-center gap-1.5 select-none mr-2"
-				>
-					<input
-						type="checkbox"
-						bind:checked={showCorners}
-						class="h-3.5 w-3.5 rounded border-divider accent-primary"
-					/>
-					<span class="font-mono text-sm font-bold text-on-surface uppercase"
-						>Corners</span
-					>
-				</label>
-				<Button
-					onclick={loadData}
-					disabled={!tm.canLoadData ||
-						tm.isLoading ||
-						tm.loadFeedback === "success"}
-					class={loadButtonClass}
-					>{loadButtonLabel}</Button
-				>
-				<Button
-					onclick={() => tm.addSlot()}
-					variant="outline"
-					class={addDriverClass}
-					>{addDriverLabel}</Button
-				>
-				<Button
-					onclick={() => {
-						tm.reset();
-						hoverDist = null;
-						xDomain = null;
-					}}
-					variant="outline"
-					class="h-8 border-divider bg-surface px-3 font-mono text-xs font-black tracking-widest text-on-surface-subtle uppercase transition-colors hover:border-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
-					>Reset</Button
-				>
-			</div>
-		</div>
+      <div class="hidden md:flex flex-wrap items-center gap-2">
+        {#if !tm.isLoading && tm.needsReloadAny}
+          <span
+            class="font-mono text-[10px] text-amber-400 uppercase animate-pulse mr-1"
+            >Selection changed</span
+          >
+        {/if}
+        <!-- Corners: subtle toggle button -->
+        <button
+          onclick={() => (showCorners = !showCorners)}
+          title={showCorners ? "Hide corner numbers" : "Show corner numbers"}
+          class="h-8 px-2.5 rounded border font-mono text-[11px] font-semibold tracking-wider uppercase transition-colors {showCorners
+            ? 'border-border bg-surface-raised text-foreground shadow-xs'
+            : 'border-border/40 bg-transparent text-muted-foreground hover:bg-surface-raised/50 hover:text-foreground'}"
+        >
+          Corners
+        </button>
+        <Button
+          onclick={loadData}
+          disabled={!tm.canLoadData || tm.isLoading}
+          title={tm.loadHint || "Load telemetry for the selected drivers"}
+          class={loadButtonClass}
+        >
+          {#if tm.isLoading}
+            <div class="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent mr-1.5"></div>
+            Loading…
+          {:else}
+            Load Data
+          {/if}
+        </Button>
+        <Button
+          onclick={() => tm.addSlot()}
+          variant="outline"
+          class={addDriverClass}>{addDriverLabel}</Button
+        >
+        <Button
+          onclick={() => {
+            tm.reset();
+            hoverDist = null;
+            xDomain = null;
+          }}
+          variant="outline"
+          class="h-8 border-divider bg-surface px-3 font-mono text-xs font-black tracking-widest text-on-surface-subtle uppercase transition-colors hover:border-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
+          >Reset</Button
+        >
+      </div>
+    </div>
 
-		<!-- Slot rows Toggle -->
-		<button
-			class="w-full flex items-center justify-between px-4 py-2 text-xs font-mono font-bold uppercase border-b border-divider hover:bg-surface-raised transition-colors"
-			onclick={() => (selectorsExpanded = !selectorsExpanded)}
-		>
-			<span class="flex items-center gap-2">
-				<span
-					>{selectorsExpanded
-						? "Hide Configuration"
-						: "Show Configuration"}</span
-				>
-				{#if !selectorsExpanded && slotTlas.length > 0}
-					<span class="text-on-surface-subtle"
-						>({slotTlas.filter(Boolean).join(" vs ")})</span
-					>
-				{/if}
-			</span>
-			<svg
-				width="16"
-				height="16"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				class:rotate-180={selectorsExpanded}
-				class="transition-transform"
-			>
-				<path d="M6 9l6 6 6-6" />
-			</svg>
-		</button>
+    <!-- Slot rows toggle (desktop only — mobile uses the Setup tab) -->
+    <button
+      class="hidden w-full md:flex items-center justify-between px-4 py-1.5 text-xs font-mono font-bold uppercase text-on-surface-subtle hover:text-on-surface hover:bg-surface-raised transition-colors border-b border-divider"
+      onclick={() => (selectorsExpanded = !selectorsExpanded)}
+    >
+      <span class="flex items-center gap-2">
+        <span
+          >{selectorsExpanded
+            ? "Hide Configuration"
+            : "Show Configuration"}</span
+        >
+        {#if !selectorsExpanded && slotTlas.length > 0}
+          <span class="text-on-surface-subtle"
+            >({slotTlas.filter(Boolean).join(" vs ")})</span
+          >
+        {/if}
+      </span>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        class:rotate-180={selectorsExpanded}
+        class="transition-transform"
+      >
+        <path d="M6 9l6 6 6-6" />
+      </svg>
+    </button>
 
-		<!-- Slot rows -->
-		{#if selectorsExpanded}
-			<div
-				class="max-h-[42vh] overflow-y-auto custom-scrollbar"
-				transition:slide={{ duration: 200 }}
-			>
-				{#each tm.slots as _, sid}
-					<SlotRow
-						bind:slot={tm.slots[sid]}
-						{sid}
-						{years}
-						laps={tm.driverLaps(sid)}
-						color={tm.color(sid)}
-						isLoaded={tm.slots[sid].hasLoaded}
-						isLast={sid === tm.slots.length - 1}
-						isOnly={tm.slots.length === 1}
-						onremove={() => tm.removeSlot(sid)}
-					/>
-				{/each}
-			</div>
-		{/if}
-	</header>
+    <!-- Slot rows (desktop only — mobile uses the Setup tab) -->
+    {#if selectorsExpanded}
+      <div
+        class="hidden md:block max-h-[42vh] overflow-y-auto custom-scrollbar"
+        transition:slide={{ duration: 200 }}
+      >
+        {#each tm.slots as slot, sid}
+          <SlotRow
+            {slot}
+            {sid}
+            {years}
+            laps={tm.driverLaps(sid)}
+            color={tm.color(sid)}
+            isLoaded={slot.hasLoaded}
+            isLast={sid === tm.slots.length - 1}
+            isOnly={tm.slots.length === 1}
+            onremove={() => tm.removeSlot(sid)}
+            ontrackchange={(y, r) => tm.setTrack(slot.id, y, r)}
+            onsessionchange={(s) => tm.setSession(slot.id, s)}
+            ondriverchange={(d) => tm.setDriver(slot.id, d)}
+            onlapchange={(l) => tm.setLap(slot.id, l)}
+          />
+        {/each}
+      </div>
+    {/if}
+  </header>
 
-	<!-- ── CHARTS + MAP ─────────────────────────────────────────────────── -->
-	<main class="flex min-h-0 flex-1 flex-col md:flex-row items-start gap-3 p-3">
-		{#if tm.isLoading}
-			<div
-				class="flex flex-1 items-center justify-center rounded-xl bg-surface py-48"
-			>
-				<div class="flex flex-col items-center gap-4">
-					<div
-						class="h-10 w-10 animate-spin rounded-full border-2 border-divider border-t-foreground"
-					></div>
-					<p
-						class="font-mono text-xs tracking-[0.3em] text-on-surface-subtle uppercase"
-					>
-						Loading telemetry…
-					</p>
-				</div>
-			</div>
-		{:else if allSeries.length > 0}
-			<!-- Charts panel -->
-			<div
-				class="custom-scrollbar max-h-none md:max-h-[calc(100dvh-13rem)] min-h-0 w-full md:flex-1 overflow-y-auto rounded-xl border border-divider bg-surface"
-			>
-				<TelemetryHUD {hudRows} {slotColors} {slotTlas} />
-				<TelemetryCharts
-					series={allSeries}
-					highlights={allLico}
-					{xDomain}
-					hoverX={hoverDist}
-					onZoom={(d) => {
-						xDomain = d;
-					}}
-					onHover={(x) => {
-						hoverDist = x;
-					}}
-					corners={showCorners ? trackCorners : []}
-				/>
-			</div>
+  <!-- ── Mobile tab bar ─────────────────────────────────────────────── -->
+  {#if innerWidth < 768}
+    <div
+      class="flex shrink-0 items-center gap-1 border-b border-divider bg-surface px-2 py-1.5"
+      role="tablist"
+      aria-label="Telemetry sections"
+    >
+      <button
+        role="tab"
+        aria-selected={mobileTab === "setup"}
+        onclick={() => (mobileTab = "setup")}
+        class="h-11 flex-1 rounded-md font-mono text-xs font-black tracking-widest uppercase transition-colors {mobileTab ===
+        'setup'
+          ? 'bg-primary/15 text-primary'
+          : 'text-on-surface-subtle'}"
+      >
+        Setup
+      </button>
+      <button
+        role="tab"
+        aria-selected={mobileTab === "charts"}
+        onclick={() => (mobileTab = "charts")}
+        class="h-11 flex-1 rounded-md font-mono text-xs font-black tracking-widest uppercase transition-colors {mobileTab ===
+        'charts'
+          ? 'bg-primary/15 text-primary'
+          : 'text-on-surface-subtle'}"
+      >
+        Charts
+      </button>
+    </div>
+  {/if}
 
-			<!-- Track Map -->
-			<div
-				class="relative md:sticky top-3 h-100 md:h-[calc(100dvh-13rem)] w-full md:w-[320px] shrink-0 overflow-hidden rounded-xl border border-divider bg-surface xl:w-100"
-			>
-				<TrackMap
-					trackPath={tm.trackPath}
-					{activeDots}
-					speedDeltaMode={tm.slots.length > 1 &&
-						tm.lapData(0).length > 0 &&
-						tm.lapData(1).length > 0}
-					{speedDeltaSegments}
-					rotation={0}
-					showLabels={false}
-					corners={showCorners ? trackCorners : []}
-				/>
-			</div>
-		{:else}
-			<TelemetryEmptyState
-				slots={tm.slots}
-				slotColors={(sid) => tm.color(sid)}
-				slotBadge={(sid) => tm.badge(sid)}
-				slotDriverName={(sid) => tm.driverName(sid)}
-			/>
-		{/if}
-	</main>
+  <!-- ── CHARTS + MAP ─────────────────────────────────────────────────── -->
+  {#if innerWidth >= 768}
+  <main class="hidden md:flex min-h-0 flex-1 flex-row gap-3 p-3">
+    {#if tm.loadFeedback === "loading" || tm.isLoading}
+      <div
+        class="flex flex-1 items-center justify-center rounded-xl bg-surface py-48"
+      >
+        <div class="flex flex-col items-center gap-4">
+          <div
+            class="h-10 w-10 animate-spin rounded-full border-2 border-divider border-t-primary"
+          ></div>
+          <p
+            class="font-mono text-xs tracking-[0.3em] text-on-surface-subtle uppercase"
+          >
+            Loading telemetry…
+          </p>
+        </div>
+      </div>
+    {:else if allSeries.length > 0}
+      <!-- ── Charts column ──────────────────────────────────────────── -->
+      <div
+        class="custom-scrollbar h-full min-h-0 w-full md:flex-1 overflow-y-auto rounded-lg border border-divider bg-surface transition-opacity duration-200"
+        class:opacity-60={tm.isLoading}
+      >
+        <LapStats slots={lapStatsSlots} {hudRows} />
+
+        <TelemetryCharts
+          series={allSeries}
+          highlights={allLico}
+          {xDomain}
+          hoverX={hoverDist}
+          onZoom={(d) => {
+            xDomain = d;
+          }}
+          onHover={(x) => {
+            hoverDist = x;
+          }}
+          corners={showCorners ? trackCorners : []}
+        />
+      </div>
+
+      <!-- Drag handle -->
+      <div
+        role="separator"
+        aria-label="Resize sidebar"
+        onpointerdown={startResize}
+        class="hidden md:block w-3 shrink-0 cursor-col-resize self-stretch relative group"
+      >
+        <div
+          class="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-divider transition-colors group-hover:bg-primary {isResizing
+            ? 'bg-primary'
+            : ''}"
+        ></div>
+      </div>
+
+      <!-- ── Right sidebar ─────────────────────────────────────────── -->
+      <div
+        class="w-full shrink-0 flex flex-col gap-3 min-h-0 overflow-y-auto custom-scrollbar"
+        style={innerWidth >= 768
+          ? `width:${sidebarWidth}px; max-width:50%;`
+          : ""}
+      >
+        <!-- Track map card: square aspect ratio -->
+        <div
+          class="flex flex-col rounded-lg border border-divider bg-surface overflow-hidden"
+        >
+          <div class="relative w-full aspect-square">
+            <TrackMap
+              trackPath={tm.trackPath}
+              {activeDots}
+              speedDeltaMode={tm.slots.length > 1 &&
+                tm.lapData(0).length > 0 &&
+                tm.lapData(1).length > 0}
+              {speedDeltaSegments}
+              rotation={0}
+              showRotationGUI={false}
+              showLabels={false}
+              corners={showCorners ? trackCorners : []}
+            />
+          </div>
+        </div>
+      </div>
+    {:else}
+      <TelemetryEmptyState
+        slots={tm.slots}
+        slotColors={(sid) => tm.color(sid)}
+        slotBadge={(sid) => tm.badge(sid)}
+        slotDriverName={(sid) => tm.driverName(sid)}
+        errorMessage={tm.loadFeedback === "error"
+          ? tm.loadErrorMessage || "Failed to load telemetry."
+          : ""}
+        onload={loadData}
+        canLoad={tm.canLoadData}
+        isLoading={tm.isLoading}
+      />
+    {/if}
+  </main>
+  {:else}
+  <!-- ── Mobile panes ─────────────────────────────────────────────────── -->
+  <main class="flex min-h-0 flex-1 flex-col overflow-hidden">
+    {#if mobileTab === "setup"}
+      <div class="flex-1 overflow-y-auto">
+        <div
+          class="flex items-center justify-between border-b border-divider px-3 py-1.5"
+        >
+          <span
+            class="font-mono text-[11px] font-bold tracking-widest text-on-surface-subtle uppercase"
+          >
+            Drivers ({tm.slots.length})
+          </span>
+          <button
+            onclick={() => tm.addSlot()}
+            title="Add driver"
+            aria-label="Add driver"
+            class="h-9 w-9 rounded-md border border-divider bg-surface-raised font-mono text-lg font-black leading-none text-on-surface"
+          >
+            +
+          </button>
+        </div>
+        {#each tm.slots as slot, sid}
+          <SlotRow
+            {slot}
+            {sid}
+            {years}
+            laps={tm.driverLaps(sid)}
+            color={tm.color(sid)}
+            isLoaded={slot.hasLoaded}
+            isLast={sid === tm.slots.length - 1}
+            isOnly={tm.slots.length === 1}
+            onremove={() => tm.removeSlot(sid)}
+            ontrackchange={(y, r) => tm.setTrack(slot.id, y, r)}
+            onsessionchange={(s) => tm.setSession(slot.id, s)}
+            ondriverchange={(d) => tm.setDriver(slot.id, d)}
+            onlapchange={(l) => tm.setLap(slot.id, l)}
+          />
+        {/each}
+        <div class="p-3">
+          <p
+            class="text-center font-mono text-[10px] tracking-widest text-on-surface-subtle uppercase"
+          >
+            Up to 4 drivers can be compared
+          </p>
+        </div>
+      </div>
+    {:else}
+      {#if tm.loadFeedback === "loading" || tm.isLoading}
+        <div class="flex flex-1 items-center justify-center py-24">
+          <div class="flex flex-col items-center gap-4">
+            <div
+              class="h-10 w-10 animate-spin rounded-full border-2 border-divider border-t-primary"
+            ></div>
+            <p
+              class="font-mono text-xs tracking-[0.3em] text-on-surface-subtle uppercase"
+            >
+              Loading telemetry…
+            </p>
+          </div>
+        </div>
+      {:else if allSeries.length > 0}
+        <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div
+            class="flex shrink-0 items-center justify-between border-b border-divider px-3 py-1.5"
+          >
+            <button
+              onclick={() => (showCorners = !showCorners)}
+              class="h-9 px-3 rounded border font-mono text-[11px] font-semibold tracking-wider uppercase transition-colors {showCorners
+                ? 'border-border bg-surface-raised text-foreground'
+                : 'border-border/40 bg-transparent text-muted-foreground'}"
+            >
+              Corners
+            </button>
+            <button
+              onclick={() => {
+                xDomain = null;
+              }}
+              disabled={!xDomain}
+              class="h-9 px-3 rounded border border-divider font-mono text-[11px] font-semibold tracking-wider text-on-surface-subtle uppercase disabled:opacity-40"
+            >
+              Reset zoom
+            </button>
+          </div>
+          <div class="min-h-0 flex-1 overflow-y-auto">
+            <!-- Pinned: stats + track stay visible while charts scroll,
+                 so scrubbing always shows where the driver is -->
+            <div class="sticky top-0 z-20 bg-surface">
+              <LapStats slots={lapStatsSlots} {hudRows} />
+              <div class="h-40 shrink-0 border-b border-divider">
+                <TrackMap
+                  trackPath={tm.trackPath}
+                  {activeDots}
+                  speedDeltaMode={tm.slots.length > 1 &&
+                    tm.lapData(0).length > 0 &&
+                    tm.lapData(1).length > 0}
+                  {speedDeltaSegments}
+                  rotation={0}
+                  showRotationGUI={false}
+                  showLabels={false}
+                  corners={showCorners ? trackCorners : []}
+                />
+              </div>
+            </div>
+            <TelemetryCharts
+              series={allSeries}
+              highlights={allLico}
+              {xDomain}
+              hoverX={hoverDist}
+              onZoom={(d) => {
+                xDomain = d;
+              }}
+              onHover={(x) => {
+                hoverDist = x;
+              }}
+              corners={showCorners ? trackCorners : []}
+              enableSwitcher={true}
+            />
+          </div>
+        </div>
+      {:else}
+        <div class="flex-1 overflow-y-auto p-3">
+          <TelemetryEmptyState
+            slots={tm.slots}
+            slotColors={(sid) => tm.color(sid)}
+            slotBadge={(sid) => tm.badge(sid)}
+            slotDriverName={(sid) => tm.driverName(sid)}
+            errorMessage={tm.loadFeedback === "error"
+              ? tm.loadErrorMessage || "Failed to load telemetry."
+              : ""}
+            onload={loadData}
+            canLoad={tm.canLoadData}
+            isLoading={tm.isLoading}
+          />
+        </div>
+      {/if}
+    {/if}
+  </main>
+  <!-- ── Mobile bottom action bar ─────────────────────────────────────── -->
+  <div
+    class="shrink-0 border-t border-divider bg-surface/95 px-3 pt-2 backdrop-blur pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+  >
+    {#if !tm.isLoading && tm.needsReloadAny}
+      <p
+        class="mb-1.5 text-center font-mono text-[10px] tracking-widest text-amber-400 uppercase animate-pulse"
+      >
+        Selection changed — reload to update
+      </p>
+    {/if}
+    <div class="flex">
+      <button
+        onclick={loadData}
+        disabled={!tm.canLoadData || tm.isLoading}
+        class="h-10 flex-1 inline-flex items-center justify-center gap-2 rounded-md border font-mono text-xs font-black tracking-widest uppercase transition-all disabled:opacity-40 {tm.needsReloadAny
+          ? 'border-amber-400 bg-amber-400 text-black animate-pulse'
+          : 'border-primary bg-primary text-primary-foreground'}"
+      >
+        {#if tm.isLoading}
+          <div
+            class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
+          ></div>
+          Loading…
+        {:else}
+          Load Data
+        {/if}
+      </button>
+    </div>
+  </div>
+  {/if}
 </div>
 
 <style>
-	.custom-scrollbar::-webkit-scrollbar {
-		width: 4px;
-	}
-	.custom-scrollbar::-webkit-scrollbar-track {
-		background: transparent;
-	}
-	.custom-scrollbar::-webkit-scrollbar-thumb {
-		background: var(--divider);
-		border-radius: 2px;
-	}
-	.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-		background: var(--surface-overlay);
-	}
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--divider);
+    border-radius: 2px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--surface-overlay);
+  }
 </style>

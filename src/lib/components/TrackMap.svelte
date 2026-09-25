@@ -16,12 +16,12 @@
 	const ZOOM_MIN = 1; // Minimum zoom level.
 	const ZOOM_MAX = 10; // Maximum zoom level.
 	const VIEWPORT_PADDING_RATIO = 0.25; // Extra viewport padding as track size ratio.
-	const CORNER_FONT_SIZE = "11px"; // Corner label font size.
+	const CORNER_FONT_SIZE = "9px"; // Corner label font size.
 	const CORNER_LABEL_PADDING_X = 2; // Horizontal padding around corner text.
-	const CORNER_LABEL_PADDING_Y = 2; // Vertical padding around corner text.
-	const CORNER_LABEL_RADIUS_PX = 3; // Corner label background radius.
-	const CORNER_OFFSET_PX = TRACK_STROKE_WIDTH / 2 + 10; // Corner label offset from track centerline.
-	const CORNER_TANGENT_NUDGE_PX = 5; // Small along-track nudge to reduce overlaps.
+	const CORNER_LABEL_PADDING_Y = 1.5; // Vertical padding around corner text.
+	const CORNER_LABEL_RADIUS_PX = 2; // Corner label background radius.
+	const CORNER_OFFSET_PX = TRACK_STROKE_WIDTH / 2 + 7; // Corner label offset from track centerline.
+	const CORNER_TANGENT_NUDGE_PX = 4; // Small along-track nudge to reduce overlaps.
 
 	export interface DriverDot {
 		id: string;
@@ -62,6 +62,8 @@
 	}
 
 	let container = $state<HTMLDivElement>();
+	let containerWidth = $state(0);
+	let containerHeight = $state(0);
 
 	// Scales are needed by both effects
 	let xScale = $state<d3.ScaleLinear<number, number>>();
@@ -77,6 +79,8 @@
 
 	// Keep track of zoom non-reactively because D3 handles the DOM updates directly
 	let currentZoom = 1;
+	// Size of the SVG viewport, set when the track is drawn — reused for rotation center
+	let svgSize = 0;
 
 	function cornerMarkerPosition(corner: TrackCorner): { x: number; y: number } {
 		if (!xScale || !yScale) return { x: 0, y: 0 };
@@ -96,11 +100,13 @@
 		return { x: baseX + dx, y: baseY + dy };
 	}
 
-	// EFFECT 1: Draw the static track SVG ONLY when trackPath or container mounts
+	// EFFECT 1: Draw the static track SVG when trackPath mounts or container dimensions change
 	$effect(() => {
 		if (!container || trackPath.length === 0) return;
-		// Reading trackPath explicitly to ensure this effect re-runs when the reference changes
 		trackPath;
+		// Reading dimensions explicitly so effect re-computes on container resize (e.g. sidebar drag)
+		const width = containerWidth;
+		const height = containerHeight;
 		const curContainer = container;
 
 		untrack(() => {
@@ -109,10 +115,14 @@
 			containerSelection.selectAll("*").remove();
 
 			// Base scale off the smallest container dimension to ensure 1:1 square
-			const size = Math.min(
-				curContainer.clientWidth,
-				curContainer.clientHeight || curContainer.clientWidth,
-			);
+			const size =
+				Math.round(
+					Math.min(
+						width || curContainer.clientWidth,
+						height || curContainer.clientHeight || width || curContainer.clientWidth,
+					),
+				) || 300;
+			svgSize = size; // store for rotation effect
 
 			const xExtent = d3.extent(
 				trackPath,
@@ -409,9 +419,9 @@
 
 					g.append("rect")
 						.attr("class", "corner-label-bg")
-						.attr("fill", "rgba(8,12,16,0.55)")
-						.attr("stroke", "rgba(230,235,245,0.65)")
-						.attr("stroke-width", 0.8)
+						.attr("fill", "rgba(8,12,16,0.75)")
+						.attr("stroke", "rgba(230,235,245,0.4)")
+						.attr("stroke-width", 0.6)
 						.attr("rx", CORNER_LABEL_RADIUS_PX)
 						.attr("ry", CORNER_LABEL_RADIUS_PX);
 
@@ -474,18 +484,14 @@
 			);
 	});
 
-	// EFFECT 5: Run specific rotation transformations when `rotation` bind changes
+	// EFFECT 5: Apply rotation when `rotation` changes
 	$effect(() => {
 		const r = rotation;
-		if (!container) return;
+		if (!rotateGroup || svgSize === 0) return;
 
-		if (rotateGroup) {
-			const size = Math.min(
-				container?.clientWidth || 0,
-				container?.clientHeight || container?.clientWidth || 0,
-			);
-			rotateGroup.attr("transform", `rotate(${r}, ${size / 2}, ${size / 2})`);
-		}
+		const cx = svgSize / 2;
+		const cy = svgSize / 2;
+		rotateGroup.attr("transform", `rotate(${r}, ${cx}, ${cy})`);
 
 		if (cornersGroup) {
 			const scaleFactor = 1 / currentZoom;
@@ -538,6 +544,8 @@
 	>
 		<div
 			bind:this={container}
+			bind:clientWidth={containerWidth}
+			bind:clientHeight={containerHeight}
 			class="flex h-full w-full items-center justify-center"
 		></div>
 	</div>

@@ -76,8 +76,8 @@ def main():
                 try:
                     if session_date.tzinfo is None:
                         session_date = session_date.tz_localize('UTC')
-                    # Give it a 4-hour buffer after the start time for the session to finish and data to be published
-                    if session_date > now_utc - pd.Timedelta(hours=4):
+                    # Give it a 1-hour buffer after the start time for the session to finish and data to be published
+                    if session_date > now_utc - pd.Timedelta(hours=1):
                         print(f"Skipping {session_name} for Round {round_number} (session has not happened yet).")
                         continue
                 except Exception:

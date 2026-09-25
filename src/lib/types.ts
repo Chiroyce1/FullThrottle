@@ -81,6 +81,17 @@ export interface DriverMeta {
   grid: number;
   pos: number;
   valid_laps?: ValidLap[];
+  pit_stops?: PitStopEntry[];
+}
+
+// ─── Weather (from JSON sidecar) ─────────────────────────────────────────
+
+export interface WeatherSummary {
+  air_temp: number | null;
+  track_temp: number | null;
+  humidity: number | null;
+  wind_speed: number | null;
+  rainfall: boolean;
 }
 
 // ─── Session Info (from JSON sidecar) ────────────────────────────────────
@@ -100,6 +111,9 @@ export interface SessionInfo {
   day?: number;
   // UI-computed
   totalLaps?: number;
+  // Only present on sessions ingested with the updated pipeline
+  weather?: WeatherSummary;
+  weather_series?: WeatherSeries;
 }
 
 // ─── Qualifying Phase Entry ──────────────────────────────────────────────
@@ -112,10 +126,39 @@ export interface QualiPhaseEntry {
 
 // ─── Full Telemetry Metadata Envelope ────────────────────────────────────
 
+export interface WeatherSeries {
+  t: number[];
+  air_temp: (number | null)[];
+  track_temp: (number | null)[];
+  humidity: (number | null)[];
+  pressure: (number | null)[];
+  wind_speed: (number | null)[];
+  wind_direction: (number | null)[];
+  rainfall: boolean[];
+}
+
+export interface ClassificationEntry {
+  driver: string;
+  position: string | null;
+  points: number;
+  status: string | null;
+  gap_to_leader: string | null;
+  laps: number | null;
+  fastest_lap_time: number | null;
+  fastest_lap_number: number | null;
+}
+
+export interface PitStopEntry {
+  lap: number | null;
+  compound_after: string | null;
+}
+
 export interface TelemetryMeta {
   session_info: SessionInfo;
   drivers: Record<string, DriverMeta>;
   qualifying?: Record<string, QualiPhaseEntry>;
+  session_results?: ClassificationEntry[];
+  ingest?: { enrichments: string[] };
 }
 
 // ─── Reusable Helper Types ───────────────────────────────────────────────

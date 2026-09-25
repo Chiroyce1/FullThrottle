@@ -28,28 +28,34 @@ FullThrottle is built edge-first. The goal was to efficiently get the telemetry 
 
 ## Data Pipeline
 
-Telemetry ingestion is run locally via the scripts in `ingest/`. F1's live timing servers block cloud/datacenter IP ranges (including GitHub-hosted Actions runners), so automated cron runs in the cloud return empty data. 
-
-### Running Ingest
-
-To pull recent sessions, process Parquet files, rebuild metadata, and upload to Hugging Face:
+Telemetry ingestion runs locally. F1's live timing servers block cloud/datacenter IP ranges (including GitHub-hosted Actions runners), so there is no CI cron for this. After a race weekend, sync from your own machine:
 
 ```bash
 cd ingest
-python3 ingest.py 2026
-python3 build_metadata.py
-python3 upload.py
+python3 sync.py 2026            # ingest new + patch old + rebuild metadata
+python3 sync.py 2026 --upload   # same, then push to Hugging Face
+```
+
+`sync.py` runs four steps in order: ingest new sessions, apply pending patches to saved files, rebuild `metadata.json`, and optionally upload. Each step can be skipped (`--skip-ingest`, `--skip-patches`, `--skip-metadata`), and `--dry-run` shows what would happen. `python3 sync.py 2026 --round 14` limits the run to one round.
+
+### Enriching old sessions
+
+Session files gain new data blocks over time (weather series, full classification, quali phases, pit stops). Versioned enrichment stages in `ingest/enrichments/` fill in whatever a file is missing. Each file records completed stages in `ingest.enrichments`, so re-running is idempotent. New ingests run the same stages inline, so fresh files are born complete. To enrich without ingesting anything new:
+
+```bash
+cd ingest
+python3 backfill.py --year 2026
 ```
 
 ### Data Storage
 
-| Region | What lives there | Who writes it |
+| Location | What lives there | Who writes it |
 | --- | --- | --- |
-| **GitHub repo** (`static/metadata.json`) | Session index loaded by the frontend | Committed manually after ingest |
-| **Hugging Face dataset** | All `.parquet` + `.json` session files | Uploaded via `upload.py` |
-| **Local dev** (`static/data/`) | Downloaded copy for offline development | Developer, via `hf download` |
+| **Git repo** (`static/metadata.json`, `static/tracks/`) | Session index loaded by the frontend, circuit geometry | Committed manually after sync |
+| **Hugging Face dataset** | All `.parquet` + `.json` session files (the 2GB) | Uploaded via `sync.py --upload` |
+| **Local dev** (`static/data/`, gitignored) | Working copy for ingest and offline development | `sync.py`, or `download.py` to pull from HF (`--refresh` re-pulls sidecar JSONs) |
 
-`static/data/` is gitignored. The repo only tracks `metadata.json`.
+`static/data/` is gitignored. The repo only tracks `metadata.json` and track geometry.
 
 
 ## Development
@@ -104,7 +110,7 @@ npm run test
 
 FullThrottle uses [PostHog](https://posthog.com/) for anonymized web analytics and user feedback during the early development/testing period, alongside [Cloudflare](https://cloudflare.com/) for web hosting and analytics.
 
-## License, Contibuting and AI
+## License, contributing and AI
 
 This project is licensed under the AGPLv3 License - see the [LICENSE](LICENSE) file for more information.
 

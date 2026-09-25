@@ -37,10 +37,10 @@
 				How do I use the telemetry charts?
 			</h3>
 			<p class="leading-relaxed text-on-surface-muted">
-				Simply <strong>hover</strong> over any chart to see the synchronized
-				data across all graphs and the track map. You can <strong>zoom</strong>
-				by clicking and dragging on a section of the chart. Double-click the chart
-				to <strong>reset</strong> the zoom.
+				Hover over any chart to see the synchronized data across all
+				graphs and the track map. You can <strong>zoom</strong> by
+				clicking and dragging on a section of the chart. Double-click
+				the chart to <strong>reset</strong> the zoom.
 			</p>
 		</div>
 

@@ -6,209 +6,116 @@ import type { TelemetryRow, TrackPoint, LapTimingEntry } from "$lib/types";
 import type { SlotState } from "$lib/metadata-types";
 import { generateJsonUrl, generateParquetUrl } from "$lib";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface EngineContext {
-	slots: SlotState[];
-	selectionKey: (sid: number) => string;
-	buildFilename: (sid: number) => string;
-}
-
 export type LoadResult = "success" | "empty" | "error";
 
-// ─── EngineManager ────────────────────────────────────────────────────────────
-
-/**
- * Manages the parallel TelemetryEngine array, slot-to-engine mapping,
- * and grouped data loading. Extracted from old SlotManager.
- */
 export class EngineManager {
-	readonly engines: TelemetryEngine[] = [
-		new TelemetryEngine(),
-		new TelemetryEngine(),
-	];
+	readonly engines = new Map<string, TelemetryEngine>();
+	#loading = false;
 
-	/** Ensure we have enough engines for `sid`. */
-	ensureCapacity(sid: number) {
-		while (this.engines.length <= sid) this.engines.push(new TelemetryEngine());
-	}
-
-	/** Remove engine at `sid` and dispose it. */
-	removeSid(sid: number) {
-		this.engines[sid]?.dispose();
-		this.engines.splice(sid, 1);
-	}
-
-	/** Dispose all engines. */
 	dispose() {
-		for (const engine of this.engines) engine.dispose();
-	}
-
-	// ── Slot → Engine mapping ────────────────────────────────────────────
-
-	/**
-	 * Build a mapping of slot index → engine index.
-	 * Slots sharing the same selection key share the lead engine.
-	 */
-	engineIndex(ctx: EngineContext): number[] {
-		const loadedByKey = new Map<string, number>();
-		for (let sid = 0; sid < ctx.slots.length; sid++) {
-			const key = ctx.selectionKey(sid);
-			if (!key || !ctx.slots[sid].hasLoaded) continue;
-			if (!loadedByKey.has(key)) loadedByKey.set(key, sid);
+		this.#loading = false;
+		for (const engine of this.engines.values()) {
+			engine.dispose();
 		}
-		return ctx.slots.map((_, sid) => {
-			const key = ctx.selectionKey(sid);
-			if (!key) return sid;
-			const loaded = loadedByKey.get(key);
-			return loaded !== undefined ? loaded : sid;
-		});
+		this.engines.clear();
+	}
+	
+	reset() {
+		this.dispose();
 	}
 
-	/** Get the engine that serves a given slot. */
-	engineForSlot(ctx: EngineContext, sid: number): TelemetryEngine {
-		const idx = this.engineIndex(ctx)[sid] ?? sid;
-		return this.engines[idx];
-	}
-
-	/** Indices of unique active engines (deduped by selection key). */
-	activeEngineIndices(ctx: EngineContext): number[] {
-		const seen = new Set<number>();
-		const out: number[] = [];
-		const index = this.engineIndex(ctx);
-		for (let sid = 0; sid < ctx.slots.length; sid++) {
-			const idx = index[sid] ?? sid;
-			if (seen.has(idx)) continue;
-			seen.add(idx);
-			out.push(idx);
+	/** Ensures engines are cleaned up if no active slot uses their key. */
+	cleanup(activeKeys: Set<string>) {
+		for (const [key, engine] of this.engines.entries()) {
+			if (!activeKeys.has(key)) {
+				engine.dispose();
+				this.engines.delete(key);
+			}
 		}
-		return out;
 	}
 
-	/** Whether any active engine is currently loading. */
-	isLoading(ctx: EngineContext): boolean {
-		return this.activeEngineIndices(ctx).some(
-			(idx) => this.engines[idx]?.isLoading,
-		);
+	isLoading(): boolean {
+		if (this.#loading) return true;
+		for (const engine of this.engines.values()) {
+			if (engine.isLoading) return true;
+		}
+		return false;
 	}
 
-	// ── Data access ──────────────────────────────────────────────────────
-
-	/** Get lap timing entries for a driver in a slot. */
-	driverLaps(ctx: EngineContext, sid: number): LapTimingEntry[] {
-		const s = ctx.slots[sid];
-		if (!s) return [];
-		return s.hasLoaded && s.driver
-			? this.engineForSlot(ctx, sid).getDriverLapTimes(s.driver)
-			: [];
+	getEngine(selectionKey: string | null): TelemetryEngine | undefined {
+		if (!selectionKey) return undefined;
+		return this.engines.get(selectionKey);
 	}
 
-	/** Get normalized lap telemetry for the selected lap. */
-	lapData(ctx: EngineContext, sid: number): TelemetryRow[] {
-		const s = ctx.slots[sid];
-		if (!s) return [];
-		return s.hasLoaded && s.driver && s.lap
-			? this.engineForSlot(ctx, sid).getNormalizedLapTelemetry(
-					s.driver,
-					s.lap,
-				)
-			: [];
+	driverLaps(slot: SlotState, selectionKey: string | null): LapTimingEntry[] {
+		if (!slot.hasLoaded || !slot.driver || !selectionKey) return [];
+		return this.getEngine(selectionKey)?.getDriverLapTimes(slot.driver) ?? [];
 	}
 
-	/** Get the track path from the first loaded engine. */
-	trackPath(ctx: EngineContext): TrackPoint[] {
-		for (let sid = 0; sid < ctx.slots.length; sid++) {
-			if (!ctx.slots[sid].hasLoaded) continue;
-			const path = this.engineForSlot(ctx, sid)?.trackPath ?? [];
-			if (path.length > 0) return path;
+	lapData(slot: SlotState, selectionKey: string | null): TelemetryRow[] {
+		if (!slot.hasLoaded || !slot.driver || !slot.lap || !selectionKey) return [];
+		return this.getEngine(selectionKey)?.getNormalizedLapTelemetry(slot.driver, slot.lap) ?? [];
+	}
+
+	trackPath(): TrackPoint[] {
+		for (const engine of this.engines.values()) {
+			if (engine.trackPath.length > 0) return engine.trackPath;
 		}
 		return [];
 	}
 
-	// ── Loading ──────────────────────────────────────────────────────────
-
-	/**
-	 * Load telemetry data for all slots, grouped by selection key.
-	 * Returns a promise that resolves with the overall load result.
-	 */
 	async load(
-		ctx: EngineContext,
+		keysToLoad: Array<{ key: string; year: string; filename: string }>,
 		dataFrequency: SampleRate,
 	): Promise<LoadResult> {
-		const groups = new Map<
-			string,
-			{
-				leadSid: number;
-				members: number[];
-				year: string;
-				filename: string;
-			}
-		>();
+		if (this.#loading) return "error";
+		this.#loading = true;
 
-		for (let sid = 0; sid < ctx.slots.length; sid++) {
-			const s = ctx.slots[sid];
-			const key = ctx.selectionKey(sid);
-			const fn = ctx.buildFilename(sid);
-			if (!s.driver || !key || !fn) continue;
-			if (!groups.has(key)) {
-				groups.set(key, {
-					leadSid: sid,
-					members: [sid],
-					year: s.year,
-					filename: fn,
-				});
-			} else {
-				groups.get(key)!.members.push(sid);
+		try {
+			// Dispose every previous engine — a committed load is always a clean slate.
+			for (const engine of this.engines.values()) {
+				engine.dispose();
 			}
+			this.engines.clear();
+
+			if (keysToLoad.length === 0) return "success";
+
+			// Dedupe: N slots on the same session share one engine + one fetch.
+			// Without this, 4 slots on 1 session fired 4 identical 20MB downloads
+			// and all but the last engine leaked (overwritten in the map).
+			const unique = new Map<string, { year: string; filename: string }>();
+			for (const { key, year, filename } of keysToLoad) {
+				if (!unique.has(key)) unique.set(key, { year, filename });
+			}
+
+			const results: LoadResult[] = [];
+			for (const [key, { year, filename }] of unique.entries()) {
+				if (!this.#loading) return "error";
+
+				const engine = new TelemetryEngine();
+				this.engines.set(key, engine);
+
+				const parquetUrl = generateParquetUrl(year, filename);
+				const jsonUrl = generateJsonUrl(year, filename);
+
+				try {
+					await engine.load(dataFrequency, parquetUrl, jsonUrl);
+					if (!this.#loading) return "error";
+					results.push(engine.totalRows > 0 ? "success" : "empty");
+				} catch {
+					results.push("error");
+				}
+
+				if (!this.#loading) return "error";
+				// Yield to allow UI paint and avoid memory spikes when loading multiple engines
+				await new Promise((r) => setTimeout(r, 40));
+			}
+
+			if (results.some((r) => r === "error")) return "error";
+			if (results.some((r) => r === "empty")) return "empty";
+			return "success";
+		} finally {
+			this.#loading = false;
 		}
-
-		const promises: Promise<LoadResult>[] = [];
-
-		for (const [key, group] of groups) {
-			const engine = this.engines[group.leadSid];
-			const parquetUrl = generateParquetUrl(group.year, group.filename);
-			const jsonUrl = generateJsonUrl(group.year, group.filename);
-
-			for (const sid of group.members) {
-				ctx.slots[sid].loadError = "";
-				ctx.slots[sid].hasLoaded = false;
-			}
-
-			const p = engine
-				.load(dataFrequency, parquetUrl, jsonUrl)
-				.then((): LoadResult => {
-					if (engine.totalRows > 0) {
-						for (const sid of group.members) {
-							ctx.slots[sid].lastLoadedKey = key;
-							ctx.slots[sid].hasLoaded = true;
-							ctx.slots[sid].lap = null;
-						}
-						return "success";
-					} else {
-						for (const sid of group.members) {
-							ctx.slots[sid].hasLoaded = false;
-							ctx.slots[sid].loadError =
-								"No telemetry rows loaded for this session.";
-						}
-						return "empty";
-					}
-				})
-				.catch((e: unknown): LoadResult => {
-					const err = String(e);
-					for (const sid of group.members) {
-						ctx.slots[sid].loadError = err;
-					}
-					return "error";
-				});
-
-			promises.push(p);
-		}
-
-		if (promises.length === 0) return "error";
-
-		const results = await Promise.all(promises);
-		if (results.some((r) => r === "error")) return "error";
-		if (results.some((r) => r === "empty")) return "empty";
-		return "success";
 	}
 }
