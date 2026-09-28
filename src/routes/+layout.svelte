@@ -40,28 +40,8 @@
 		src="https://static.cloudflareinsights.com/beacon.min.js"
 		data-cf-beacon={'{"token": "056e0eb98fcb41a9990c6a018fadd88a"}'}
 	></script>
-	<meta property="og:type" content="website" />
-	<meta property="og:url" content="https://fullthrottlef1.pages.dev/" />
-	<meta property="og:title" content="FullThrottle - F1 Telemetry" />
-	<meta
-		property="og:description"
-		content="Free and open-source F1 telemetry charts and session replays."
-	/>
-	<meta
-		property="og:image"
-		content="https://fullthrottlef1.pages.dev/dashboard.png"
-	/>
-
-	<meta property="twitter:card" content="summary_large_image" />
-	<meta property="twitter:title" content="FullThrottle - F1 Telemetry" />
-	<meta
-		property="twitter:description"
-		content="Free and open-source F1 telemetry charts and session replays."
-	/>
-	<meta
-		property="twitter:image"
-		content="https://fullthrottlef1.pages.dev/dashboard.png"
-	/>
+	<link rel="manifest" href="/manifest.webmanifest" />
+	<meta name="theme-color" content="#0d0f12" />
 </svelte:head>
 
 <ModeWatcher defaultMode="dark" />
@@ -74,9 +54,9 @@
 		>
 			<div class="mx-auto flex max-w-7xl items-center justify-between">
 				<div class="flex items-center gap-4">
-					<h1 class="text-2xl font-bold tracking-tight text-foreground">
+					<div class="text-2xl font-bold tracking-tight text-foreground">
 						<a href="/">FullThrottle</a>
-					</h1>
+					</div>
 				</div>
 				<div class="flex items-center gap-6">
 					<nav

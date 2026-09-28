@@ -1,6 +1,6 @@
 <script lang="ts">
+	import SEO from "$lib/components/SEO.svelte";
 	import { Button } from "$lib/components/ui/button";
-	import { Badge } from "$lib/components/ui/badge";
 	import { Separator } from "$lib/components/ui/separator";
 	import SessionPicker from "$lib/components/SessionPicker.svelte";
 	import type { PageData } from "./$types";
@@ -14,14 +14,14 @@
 	const latestRoundEntry = $derived(latestRound(latestYearEntry));
 	const latestSessionEntry = $derived(latestSession(latestRoundEntry));
 	const latestReplayUrl = $derived.by(() => {
-		if (!latestYearEntry || !latestRoundEntry || !latestSessionEntry) return null;
+		if (!latestYearEntry || !latestRoundEntry || !latestSessionEntry)
+			return null;
 		return `/replay/${latestYearEntry.year}/${latestRoundEntry.round}/${latestSessionEntry.code}`;
 	});
 	const latestLabel = $derived.by(() => {
 		if (!latestRoundEntry || !latestSessionEntry) return null;
 		return `${latestRoundEntry.name} · ${latestSessionEntry.label}`;
 	});
-
 
 	const features = [
 		{
@@ -72,28 +72,16 @@
 	] as const;
 </script>
 
-<svelte:head>
-	<title>FullThrottle - F1 Telemetry</title>
-	<meta
-		name="description"
-		content="F1 telemetry analysis in the browser using rich data from FastF1"
-	/>
-</svelte:head>
+<SEO route="home" />
 
 <main
 	class="mx-auto flex w-full max-w-7xl flex-1 flex-col items-center gap-12 md:gap-18 px-4 md:px-8 py-12 md:py-24 text-center"
 >
 	<!-- Hero -->
 	<section
-		class="flex min-h-[50vh] md:min-h-[60vh] flex-col items-center justify-center gap-6 md:gap-8"
+		class="flex min-h-[50vh] md:min-h-[60vh] flex-col items-center justify-center gap-6 md:gap-8 mt-10"
 	>
 		<div class="flex flex-col items-center gap-4 select-none">
-			<Badge
-				variant="outline"
-				class="border-green-600 px-4 py-1 font-mono tracking-widest text-green-600 uppercase border-2"
-			>
-				OPEN SOURCE BETA
-			</Badge>
 			<h1
 				class="max-w-4xl text-5xl font-black tracking-tighter text-foreground md:text-8xl"
 			>
@@ -149,15 +137,35 @@
 				href={latestReplayUrl}
 				class="group flex items-center gap-3 rounded-xl border border-divider/60 bg-surface-raised/40 px-4 py-3 text-left transition-all hover:border-divider hover:bg-surface-raised"
 			>
-				<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+				<div
+					class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
+				>
 					<!-- play icon -->
-					<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+					<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"
+						><polygon points="5 3 19 12 5 21 5 3" /></svg
+					>
 				</div>
 				<div class="min-w-0">
-					<div class="font-mono text-[9px] font-bold tracking-widest text-on-surface-subtle uppercase">Latest session</div>
-					<div class="truncate text-sm font-bold text-on-surface transition-colors group-hover:text-primary">{latestLabel}</div>
+					<div
+						class="font-mono text-[9px] font-bold tracking-widest text-on-surface-subtle uppercase"
+					>
+						Latest session
+					</div>
+					<div
+						class="truncate text-sm font-bold text-on-surface transition-colors group-hover:text-primary"
+					>
+						{latestLabel}
+					</div>
 				</div>
-				<svg class="ml-auto shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+				<svg
+					class="ml-auto shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+					width="14"
+					height="14"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.5"><path d="m9 18 6-6-6-6" /></svg
+				>
 			</a>
 		{/if}
 

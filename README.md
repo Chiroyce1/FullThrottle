@@ -1,22 +1,27 @@
-[![FullThrottle](/static/banner.png)](https://fullthrottlef1.pages.dev/)
+[![FullThrottle](/static/banner.png)](https://fullthrottle.chiroyce.dev/)
 
 [![Svelte](https://img.shields.io/badge/Svelte-%23f1413d.svg?style=for-the-badge&logo=svelte&logoColor=white)](https://svelte.dev) [![Formula 1](https://img.shields.io/badge/Formula%201-E10600.svg?style=for-the-badge&logo=f1&logoColor=white)](https://fastf1.dev/) [![GitHub stars](https://img.shields.io/github/stars/Chiroyce1/FullThrottle.svg?style=for-the-badge&logo=github)](https://github.com/Chiroyce1/FullThrottle/stargazers)
 
-[FullThrottle](https://fullthrottlef1.pages.dev/) is a free and fast web app providing Formula 1 telemetry charts and session replays. Compare across drivers, laps, sessions, rounds, and years right from your browser.
+**[FullThrottle](https://fullthrottle.chiroyce.dev/)** is a fast, free, and open-source Formula 1 telemetry visualizer and session replay tool that runs entirely in your browser.
 
-> [!NOTE]
-> This is a hobby project and is under heavy development. If you find any bugs or want to request a feature please submit an [issue](https://github.com/Chiroyce1/FullThrottle/issues/new) or create a PR.
+---
 
 ## Features
 
-- **Interactive Telemetry:** Scrub through laps and watch speed, throttle, brake, RPM, and gears synced to the track map.
-- **Live Track Map:** Car positions and corners for session replays and per-lap analysis.
-- **Full Session Replays:** Includes leaderboards, maps, and replay for Race, Qualifying, Free Practice, and a few Pre-season testing sessions.
-- **Head to Head Comparisons:** Compare different drivers for a session across laps, compounds, and even years.
+- **Interactive Telemetry Traces:** Scrub anywhere along a lap to see speed, throttle percentage, braking, RPM, gear shifts, and with a track map showing the delta with another lap.
+- **Lift & Coast (LiCO) Detection:** Highlights segments where drivers lift off the throttle early to save tyres or charge the battery.
+- **Head-to-Head Comparisons:** Overlay upto 4 drivers side-by-side across laps, tyre compounds, sessions, and even across different years to see where lap time was won or lost.
+- **Interactive Session Replays:** Watch full Grand Prix races, Qualifying, Free Practice and Pre-Season testing sessions with telemetry and synced positions.
 
-## Architecture
+<video src="https://github.com/Chiroyce1/FullThrottle/raw/main/static/session_replay_demo.mp4" controls autoplay loop muted playsinline width="100%" poster="static/replay-preview.png">
+  <p>Your browser does not support the video tag. Watch the <a href="https://fullthrottle.chiroyce.dev/replay/2026/1/r">live interactive session replay demo here</a>.</p>
+</video>
 
-FullThrottle is built edge-first. The goal was to efficiently get the telemetry to end users, and let the browser do all the work.
+---
+
+## How it works under the hood
+
+FullThrottle is built **edge-first and client-driven**. Instead of relying on a heavy server to slice data for every query, the browser does the heavy lifting:
 
 - **Frontend:** Built with [SvelteKit](https://kit.svelte.dev/) (Svelte 5) for a fast and reactive interface.
 - **Visualizations:** [D3.js](https://d3js.org/) for all the telemetry visualizations
@@ -32,90 +37,81 @@ Telemetry ingestion runs locally. F1's live timing servers block cloud/datacente
 
 ```bash
 cd ingest
-python3 sync.py 2026            # ingest new + patch old + rebuild metadata
-python3 sync.py 2026 --upload   # same, then push to Hugging Face
+
+# Ingest new sessions, apply enrichment patches, and rebuild metadata
+python3 sync.py 2026
+
+# Run sync and upload fresh parquet files directly to Hugging Face
+python3 sync.py 2026 --upload
 ```
 
-`sync.py` runs four steps in order: ingest new sessions, apply pending patches to saved files, rebuild `metadata.json`, and optionally upload. Each step can be skipped (`--skip-ingest`, `--skip-patches`, `--skip-metadata`), and `--dry-run` shows what would happen. `python3 sync.py 2026 --round 14` limits the run to one round.
-
-### Enriching old sessions
-
-Session files gain new data blocks over time (weather series, full classification, quali phases, pit stops). Versioned enrichment stages in `ingest/enrichments/` fill in whatever a file is missing. Each file records completed stages in `ingest.enrichments`, so re-running is idempotent. New ingests run the same stages inline, so fresh files are born complete. To enrich without ingesting anything new:
+To backfill new telemetry enrichments (like weather time-series, pit stop timelines, and quali segment breakdowns) without re-downloading everything:
 
 ```bash
-cd ingest
 python3 backfill.py --year 2026
 ```
 
-### Data Storage
+---
 
-| Location | What lives there | Who writes it |
-| --- | --- | --- |
-| **Git repo** (`static/metadata.json`, `static/tracks/`) | Session index loaded by the frontend, circuit geometry | Committed manually after sync |
-| **Hugging Face dataset** | All `.parquet` + `.json` session files (the 2GB) | Uploaded via `sync.py --upload` |
-| **Local dev** (`static/data/`, gitignored) | Working copy for ingest and offline development | `sync.py`, or `download.py` to pull from HF (`--refresh` re-pulls sidecar JSONs) |
-
-`static/data/` is gitignored. The repo only tracks `metadata.json` and track geometry.
-
-
-## Development
+## Running Locally
 
 ### Prerequisites
 
-- Node.js (v20+, v24 LTS recommended)
-- npm, pnpm, or bun
-- Python/pip (to grab the Hugging Face CLI)
+- [Bun](https://bun.sh/) (recommended) or Node.js v20+
+- Python 3.10+ (if running ingestion scripts or downloading datasets)
 
-### Installation
+### Setup
 
-1. Clone the repository:
+1. **Clone the repository:**
 
    ```bash
    git clone https://github.com/Chiroyce1/FullThrottle.git
    cd FullThrottle
    ```
 
-2. Install dependencies:
+2. **Install dependencies:**
 
    ```bash
-   npm install
+   bun install
    ```
 
-3. Start the development server:
+3. **Start the local dev server:**
 
    ```bash
-   npm run dev
+   bun dev
    ```
 
-4. Open your browser and navigate to `http://localhost:5173`.
+   Open `http://localhost:5173` in your browser.
 
-5. _Optional:_ To have the telemetry data load instantly, you can download the .parquet files from Hugging Face and place them in the `/static/data` directory.
-
-   > All the pre-processed .parquet telemetry and .json metadata files are on [Hugging Face](https://huggingface.co/datasets/fullthrottlef1/fullthrottle) - 2025 and 2026 data is currently available, more to come soon. The download might take a while.
-
+4. _(Optional) Cache telemetry locally for offline dev:_
    ```bash
-   python3 -m pip install huggingface_hub # global install of the cli
+   pip install huggingface_hub
    hf download fullthrottlef1/fullthrottle --repo-type dataset --local-dir ./static/data
    ```
 
-### Testing
+### Tests
 
-To run the telemetry algorithm tests (which execute directly against the downloaded Parquet data):
+To test the telemetry processing algorithms directly against parquet datasets:
 
 ```bash
-npm run test
+bun test
 ```
 
-## Analytics
+---
 
-FullThrottle uses [PostHog](https://posthog.com/) for anonymized web analytics and user feedback during the early development/testing period, alongside [Cloudflare](https://cloudflare.com/) for web hosting and analytics.
+## Contributing & Community
 
-## License, contributing and AI
+FullThrottle is an open project built by [chiroyce](https://chiroyce.dev).
 
-This project is licensed under the AGPLv3 License - see the [LICENSE](LICENSE) file for more information.
+If you spot bugs, want to improve the telemetry systems, or have an idea for a cool new metric, feedback and contributions are very welcome!
 
-Consider this a starting point for the project. I expect to refactor a lot of it and I'm hoping to get contributions that will help improve the overall code quality and fix bugs that are definitely still present.
+- Found a bug or have a suggestion? Open an [issue](https://github.com/Chiroyce1/FullThrottle/issues/new).
+- Want to contribute code? Submit a PR! Please make sure to test your changes locally and mention what was changed and why it was changed
 
-If you find any bugs or want to request a feature please submit an [issue](https://github.com/Chiroyce1/FullThrottle/issues/new) or create a PR.
+---
 
-Contributions are welcome! Entirely AI generated PRs can be rejected outright. It is expected that you actually understand the code changes you are introducing and have tested and verified them locally before submitting a PR.
+## Disclaimer
+
+FullThrottle is an unofficial, non-commercial fan project. It is not associated, endorsed, or affiliated in any way with Formula 1, FIA, Liberty Media, or Formula One Management. F1, FORMULA ONE, FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP, GRAND PRIX and related marks are registered trademarks of Formula One Licensing B.V.
+
+Licensed under [AGPLv3](LICENSE).

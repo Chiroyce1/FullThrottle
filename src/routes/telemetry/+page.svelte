@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { slide } from "svelte/transition";
+  import SEO from "$lib/components/SEO.svelte";
   import TrackMap from "$lib/components/TrackMap.svelte";
   import type {
     ChartHighlight,
@@ -244,9 +245,7 @@
   });
 </script>
 
-<svelte:head>
-  <title>FullThrottle - Telemetry</title>
-</svelte:head>
+<SEO route="telemetry" />
 
 <svelte:window bind:innerWidth />
 

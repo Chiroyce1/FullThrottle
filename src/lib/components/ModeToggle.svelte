@@ -3,12 +3,17 @@
 	import SunIcon from "@lucide/svelte/icons/sun";
 	import MoonIcon from "@lucide/svelte/icons/moon";
 
+	import { cn } from "$lib/utils";
+
 	let { class: className = "" } = $props<{ class?: string }>();
 </script>
 
 <button
 	onclick={toggleMode}
-	class="relative flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground {className}"
+	class={cn(
+		"relative flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+		className,
+	)}
 	aria-label="Toggle theme"
 >
 	<SunIcon

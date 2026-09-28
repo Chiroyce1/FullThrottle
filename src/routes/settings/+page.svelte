@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SEO from "$lib/components/SEO.svelte";
 	import SearchableSelect from "$lib/components/SearchableSelect.svelte";
 	import { Separator } from "$lib/components/ui/separator";
 	import { Button } from "$lib/components/ui/button";
@@ -59,13 +60,7 @@
 	];
 </script>
 
-<svelte:head>
-	<title>Settings - FullThrottle</title>
-	<meta
-		name="description"
-		content="Customise telemetry display preferences for FullThrottle."
-	/>
-</svelte:head>
+<SEO route="settings" />
 
 <main class="mx-auto w-full max-w-3xl flex-1 px-4 py-16 md:px-8 md:py-24">
 	<!-- Page header -->

@@ -1,14 +1,9 @@
 <script lang="ts">
 	import Separator from "$lib/components/ui/separator/separator.svelte";
+	import SEO from "$lib/components/SEO.svelte";
 </script>
 
-<svelte:head>
-	<title>FullThrottle - FAQ</title>
-	<meta
-		name="description"
-		content="Frequently Asked Questions about FullThrottle, including data sources, feature explanations, and project roadmap."
-	/>
-</svelte:head>
+<SEO route="faq" />
 
 <div class="mx-auto max-w-4xl px-8 py-24">
 	<div>

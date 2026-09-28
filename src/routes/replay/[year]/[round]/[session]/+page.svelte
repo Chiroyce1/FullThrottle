@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { page } from "$app/state";
 	import { onDestroy } from "svelte";
-	import {
-		TelemetryEngine,
-		type SampleRate,
-	} from "$lib/TelemetryEngine.svelte";
+	import type { PageData } from "./$types";
+	import SEO from "$lib/components/SEO.svelte";
+	import { TelemetryEngine } from "$lib/TelemetryEngine.svelte";
 	import TrackMap from "$lib/components/TrackMap.svelte";
 	import TelemetryHud from "$lib/components/TelemetryHud.svelte";
 	import Leaderboard from "$lib/components/Leaderboard.svelte";
@@ -262,13 +261,11 @@
 		globalTime = parseFloat(target.value);
 		preciseTime = globalTime;
 	}
+
+	let { data }: { data: PageData } = $props();
 </script>
 
-<svelte:head>
-	<title>{engine.metadata?.session_info?.name
-		? `${page.params.year} ${engine.metadata.session_info.name} — FullThrottle`
-		: 'Session Replay — FullThrottle'}</title>
-</svelte:head>
+<SEO replay={data?.sessionMeta} />
 
 <div
 	class="flex min-h-screen flex-col bg-background text-foreground selection:bg-red-900/40 selection:text-foreground"
@@ -287,13 +284,18 @@
 				<Home class="h-4 w-4" />
 			</a>
 			<span class="text-border/60">/</span>
-			<span class="font-mono text-xs sm:text-[11px] font-bold tracking-wider text-foreground uppercase truncate max-w-[200px] sm:max-w-none">
-				{page.params.year} · {engine.metadata?.session_info?.name || (page.params.session ?? "").toUpperCase()}
+			<span
+				class="font-mono text-xs sm:text-[11px] font-bold tracking-wider text-foreground uppercase truncate max-w-50 sm:max-w-none"
+			>
+				{page.params.year} · {engine.metadata?.session_info?.name ||
+					(page.params.session ?? "").toUpperCase()}
 			</span>
 		</div>
 
 		<div class="flex items-center">
-			<ModeToggle class="!h-8 !w-8 rounded-md !border-0 !bg-transparent p-1.5 text-muted-foreground hover:bg-surface-raised hover:text-foreground" />
+			<ModeToggle
+				class="border-0 p-1.5 hover:bg-surface-raised"
+			/>
 		</div>
 	</header>
 
@@ -353,212 +355,243 @@
 							<TrackStatus status={currentTrackStatus} />
 						</div>
 
-					<div class="flex shrink-0 items-center gap-2 pl-0 sm:pl-4">
-						<label
-							for="speed-select"
-							class="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase"
-							>Speed</label
-						>
-						<select
-							id="speed-select"
-							bind:value={playbackSpeed}
-							class="cursor-pointer rounded-md border border-divider bg-background px-2 py-1 font-mono text-sm text-foreground focus:border-red-600 focus:outline-none"
-						>
-							<option value={1}>1x</option>
-							<option value={2}>2x</option>
-							<option value={5}>5x</option>
-							<option value={10}>10x</option>
-							<option value={20}>20x</option>
-							<option value={50}>50x</option>
-							<option value={100}>100x</option>
-						</select>
+						<div class="flex shrink-0 items-center gap-2 pl-0 sm:pl-4">
+							<label
+								for="speed-select"
+								class="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase"
+								>Speed</label
+							>
+							<select
+								id="speed-select"
+								bind:value={playbackSpeed}
+								class="cursor-pointer rounded-md border border-divider bg-background px-2 py-1 font-mono text-sm text-foreground focus:border-red-600 focus:outline-none"
+							>
+								<option value={1}>1x</option>
+								<option value={2}>2x</option>
+								<option value={5}>5x</option>
+								<option value={10}>10x</option>
+								<option value={20}>20x</option>
+								<option value={50}>50x</option>
+								<option value={100}>100x</option>
+							</select>
+						</div>
 					</div>
-				</div>
 
-				<div class="flex w-full flex-col justify-center pt-2">
-					<div class="mb-1.5 flex items-end justify-between">
-						<span
-							class="font-mono text-[9px] font-bold text-muted-foreground uppercase tracking-wider"
-							>START</span
-						>
-						<span
-							class="font-mono text-xs font-bold text-red-600 tabular-nums tracking-widest"
-						>
-							{formatSessionTime(globalTime)}
-						</span>
-						<span
-							class="font-mono text-[9px] font-bold text-muted-foreground uppercase tracking-wider"
-							>END</span
-						>
-					</div>
-					<input
-						type="range"
-						min={engine.minSessionTime}
-						max={engine.maxSessionTime}
-						value={globalTime}
-						oninput={handleScrub}
-						class="h-1.5 w-full cursor-crosshair appearance-none rounded-full bg-surface-overlay accent-red-600"
-					/>
-					<!-- Track Status Timeline Bar -->
-					<div
-						class="mt-2 h-3 w-full overflow-hidden rounded-full opacity-80"
-						style={trackStatusGradient}
-					></div>
-				</div>
-
-				{#if !engine.isLoading && focusedDriver}
-					<div class="pt-1">
-						<TelemetryHud
-							compact={true}
-							telemetry={focusedTelemetry}
-							meta={focusedMeta}
-							driverId={focusedDriver}
-							bind:showOnlySelectedOnMap
-							bind:showCornersOnMap
-							{globalTime}
-							leaderLap={liveLeaderboard[0]?.row?.lap_number || 1}
-							totalLaps={engine.metadata?.session_info?.totalLaps}
-							sessionInfo={engine.metadata?.session_info}
-							year={page.params.year}
-							round={page.params.round}
-							{lapData}
-							carAheadInfo={focusedNearbyDrivers.ahead}
-							carBehindInfo={focusedNearbyDrivers.behind}
+					<div class="flex w-full flex-col justify-center pt-2">
+						<div class="mb-1.5 flex items-end justify-between">
+							<span
+								class="font-mono text-[9px] font-bold text-muted-foreground uppercase tracking-wider"
+								>START</span
+							>
+							<span
+								class="font-mono text-xs font-bold text-red-600 tabular-nums tracking-widest"
+							>
+								{formatSessionTime(globalTime)}
+							</span>
+							<span
+								class="font-mono text-[9px] font-bold text-muted-foreground uppercase tracking-wider"
+								>END</span
+							>
+						</div>
+						<input
+							type="range"
+							min={engine.minSessionTime}
+							max={engine.maxSessionTime}
+							value={globalTime}
+							oninput={handleScrub}
+							class="h-1.5 w-full cursor-crosshair appearance-none rounded-full bg-surface-overlay accent-red-600"
 						/>
+						<!-- Track Status Timeline Bar -->
+						<div
+							class="mt-2 h-3 w-full overflow-hidden rounded-full opacity-80"
+							style={trackStatusGradient}
+						></div>
 					</div>
-				{/if}
-			</div>
-		{/if}
-	</div>
 
-	{#if engine.isLoading}
-		<!-- Loading Spinner -->
-		<div
-			class="flex flex-1 flex-col items-center justify-center rounded-xl border border-divider bg-surface shadow-2xl"
-		>
-			<div
-				class="mb-6 h-10 w-10 animate-spin rounded-full border-2 border-divider border-t-foreground"
-			></div>
-			<p
-				class="animate-pulse font-mono text-xs text-muted-foreground uppercase"
-			>
-				Loading telemetry…
-			</p>
-		</div>
-	{:else if engine.totalRows > 0}
-		<!-- Mobile View Tabs (< xl) -->
-		<div
-			class="flex xl:hidden items-center justify-center p-1 rounded-lg bg-surface-raised/70 border border-divider/60 mb-1 gap-1"
-		>
-			<button
-				onclick={() => (mobileTab = "map")}
-				class="flex-1 py-1.5 px-3 rounded-md font-mono text-[11px] font-bold uppercase tracking-wider transition-all {mobileTab === 'map' ? 'bg-surface shadow-xs text-foreground' : 'text-muted-foreground hover:text-foreground'}"
-			>
-				Track Map
-			</button>
-			<button
-				onclick={() => (mobileTab = "leaderboard")}
-				class="flex-1 py-1.5 px-3 rounded-md font-mono text-[11px] font-bold uppercase tracking-wider transition-all {mobileTab === 'leaderboard' ? 'bg-surface shadow-xs text-foreground' : 'text-muted-foreground hover:text-foreground'}"
-			>
-				Leaderboard
-			</button>
-			<button
-				onclick={() => (mobileTab = "both")}
-				class="flex-1 py-1.5 px-3 rounded-md font-mono text-[11px] font-bold uppercase tracking-wider transition-all {mobileTab === 'both' ? 'bg-surface shadow-xs text-foreground' : 'text-muted-foreground hover:text-foreground'}"
-			>
-				Split
-			</button>
-		</div>
-
-		<!-- Main Replay Interface -->
-		<div class="flex min-h-0 flex-1 flex-col gap-4 xl:flex-row">
-			<!-- Left Sidebar: Vertical Live Leaderboard -->
-			<div
-				class="w-full min-h-0 shrink-0 flex-col xl:flex xl:h-auto xl:w-[50vw] xl:max-w-[50vw] {mobileTab === 'leaderboard' ? 'flex flex-1 h-[60vh] sm:h-[65vh]' : mobileTab === 'both' ? 'flex h-88 sm:h-104' : 'hidden xl:flex'}"
-			>
-				<Leaderboard
-					drivers={liveLeaderboard}
-					{focusedDriver}
-					{sessionMode}
-					qualifyingData={engine.metadata?.qualifying}
-					onSelect={(id) => (focusedDriver = id)}
-				/>
-			</div>
-
-			<!-- Center/Right: Track Map -->
-			<div
-				class="relative aspect-square w-full max-h-[60vh] flex-col overflow-hidden rounded-lg border border-divider bg-surface sm:max-h-[65vh] xl:flex xl:w-[50vw] xl:max-w-[50vw] xl:max-h-[calc(100vh-200px)] {mobileTab === 'map' || mobileTab === 'both' ? 'flex' : 'hidden xl:flex'}"
-			>
-				<!-- Track Map Header: Weather (separate line on mobile) + Corners toggle & Rotation -->
-				<div
-					class="flex shrink-0 flex-col sm:flex-row sm:items-center justify-between gap-x-3 gap-y-2 border-b border-divider bg-surface-raised/40 px-3 py-2 sm:py-1.5"
-				>
-					<!-- Weather: on its own line on mobile -->
-					{#if currentWeather}
-						<div class="flex items-center min-w-0 overflow-x-auto">
-							<WeatherWidget weather={currentWeather} class="bg-transparent px-0 py-0" />
+					{#if !engine.isLoading && focusedDriver}
+						<div class="pt-1">
+							<TelemetryHud
+								compact={true}
+								telemetry={focusedTelemetry}
+								meta={focusedMeta}
+								driverId={focusedDriver}
+								bind:showOnlySelectedOnMap
+								bind:showCornersOnMap
+								{globalTime}
+								leaderLap={liveLeaderboard[0]?.row?.lap_number || 1}
+								totalLaps={engine.metadata?.session_info?.totalLaps}
+								sessionInfo={engine.metadata?.session_info}
+								year={page.params.year}
+								round={page.params.round}
+								{lapData}
+								carAheadInfo={focusedNearbyDrivers.ahead}
+								carBehindInfo={focusedNearbyDrivers.behind}
+							/>
 						</div>
 					{/if}
+				</div>
+			{/if}
+		</div>
 
-					<!-- Controls: Corners toggle (left on mobile, right on desktop) + Rotation Slider -->
-					<div class="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-						<!-- Corners toggle -->
-						<button
-							onclick={() => (showCornersOnMap = !showCornersOnMap)}
-							title={showCornersOnMap ? 'Hide corner numbers' : 'Show corner numbers'}
-							class="flex items-center gap-1.5 rounded border border-divider/60 bg-surface-overlay/50 px-2 py-1 font-mono text-[9px] font-semibold uppercase tracking-widest transition-colors hover:text-foreground {showCornersOnMap ? 'border-primary/50 text-foreground shadow-xs' : 'text-muted-foreground/70'}"
+		{#if engine.isLoading}
+			<!-- Loading Spinner -->
+			<div
+				class="flex flex-1 flex-col items-center justify-center rounded-xl border border-divider bg-surface shadow-2xl"
+			>
+				<div
+					class="mb-6 h-10 w-10 animate-spin rounded-full border-2 border-divider border-t-foreground"
+				></div>
+				<p
+					class="animate-pulse font-mono text-xs text-muted-foreground uppercase"
+				>
+					Loading telemetry…
+				</p>
+			</div>
+		{:else if engine.totalRows > 0}
+			<!-- Mobile View Tabs (< xl) -->
+			<div
+				class="flex xl:hidden items-center justify-center p-1 rounded-lg bg-surface-raised/70 border border-divider/60 mb-1 gap-1"
+			>
+				<button
+					onclick={() => (mobileTab = "map")}
+					class="flex-1 py-1.5 px-3 rounded-md font-mono text-[11px] font-bold uppercase tracking-wider transition-all {mobileTab ===
+					'map'
+						? 'bg-surface shadow-xs text-foreground'
+						: 'text-muted-foreground hover:text-foreground'}"
+				>
+					Track Map
+				</button>
+				<button
+					onclick={() => (mobileTab = "leaderboard")}
+					class="flex-1 py-1.5 px-3 rounded-md font-mono text-[11px] font-bold uppercase tracking-wider transition-all {mobileTab ===
+					'leaderboard'
+						? 'bg-surface shadow-xs text-foreground'
+						: 'text-muted-foreground hover:text-foreground'}"
+				>
+					Leaderboard
+				</button>
+				<button
+					onclick={() => (mobileTab = "both")}
+					class="flex-1 py-1.5 px-3 rounded-md font-mono text-[11px] font-bold uppercase tracking-wider transition-all {mobileTab ===
+					'both'
+						? 'bg-surface shadow-xs text-foreground'
+						: 'text-muted-foreground hover:text-foreground'}"
+				>
+					Split
+				</button>
+			</div>
+
+			<!-- Main Replay Interface -->
+			<div class="flex min-h-0 flex-1 flex-col gap-4 xl:flex-row">
+				<!-- Left Sidebar: Vertical Live Leaderboard -->
+				<div
+					class="w-full min-h-0 shrink-0 flex-col xl:flex xl:h-auto xl:w-[50vw] xl:max-w-[50vw] {mobileTab ===
+					'leaderboard'
+						? 'flex flex-1 h-[60vh] sm:h-[65vh]'
+						: mobileTab === 'both'
+							? 'flex h-88 sm:h-104'
+							: 'hidden xl:flex'}"
+				>
+					<Leaderboard
+						drivers={liveLeaderboard}
+						{focusedDriver}
+						{sessionMode}
+						qualifyingData={engine.metadata?.qualifying}
+						onSelect={(id) => (focusedDriver = id)}
+					/>
+				</div>
+
+				<!-- Center/Right: Track Map -->
+				<div
+					class="relative aspect-square w-full max-h-[60vh] flex-col overflow-hidden rounded-lg border border-divider bg-surface sm:max-h-[65vh] xl:flex xl:w-[50vw] xl:max-w-[50vw] xl:max-h-[calc(100vh-200px)] {mobileTab ===
+						'map' || mobileTab === 'both'
+						? 'flex'
+						: 'hidden xl:flex'}"
+				>
+					<!-- Track Map Header: Weather (separate line on mobile) + Corners toggle & Rotation -->
+					<div
+						class="flex shrink-0 flex-col sm:flex-row sm:items-center justify-between gap-x-3 gap-y-2 border-b border-divider bg-surface-raised/40 px-3 py-2 sm:py-1.5"
+					>
+						<!-- Weather: on its own line on mobile -->
+						{#if currentWeather}
+							<div class="flex items-center min-w-0 overflow-x-auto">
+								<WeatherWidget
+									weather={currentWeather}
+									class="bg-transparent px-0 py-0"
+								/>
+							</div>
+						{/if}
+
+						<!-- Controls: Corners toggle (left on mobile, right on desktop) + Rotation Slider -->
+						<div
+							class="flex items-center justify-between sm:justify-end gap-3 shrink-0"
 						>
-							<span class="inline-block size-1.5 rounded-full {showCornersOnMap ? 'bg-primary' : 'bg-muted-foreground/30'}"></span>
-							Corners
-						</button>
+							<!-- Corners toggle -->
+							<button
+								onclick={() => (showCornersOnMap = !showCornersOnMap)}
+								title={showCornersOnMap
+									? "Hide corner numbers"
+									: "Show corner numbers"}
+								class="flex items-center gap-1.5 rounded border border-divider/60 bg-surface-overlay/50 px-2 py-1 font-mono text-[9px] font-semibold uppercase tracking-widest transition-colors hover:text-foreground {showCornersOnMap
+									? 'border-primary/50 text-foreground shadow-xs'
+									: 'text-muted-foreground/70'}"
+							>
+								<span
+									class="inline-block size-1.5 rounded-full {showCornersOnMap
+										? 'bg-primary'
+										: 'bg-muted-foreground/30'}"
+								></span>
+								Corners
+							</button>
 
-						<!-- Rotation Slider -->
-						<div class="flex items-center gap-2 shrink-0">
-							<span
-								class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
-								>Rotation</span
-							>
-							<input
-								type="range"
-								min="0"
-								max="360"
-								step="1"
-								bind:value={mapRotation}
-								class="h-1.5 w-20 cursor-ew-resize appearance-none rounded-full bg-surface-overlay accent-primary sm:w-24"
+							<!-- Rotation Slider -->
+							<div class="flex items-center gap-2 shrink-0">
+								<span
+									class="font-mono text-[10px] tracking-widest text-muted-foreground uppercase"
+									>Rotation</span
+								>
+								<input
+									type="range"
+									min="0"
+									max="360"
+									step="1"
+									bind:value={mapRotation}
+									class="h-1.5 w-20 cursor-ew-resize appearance-none rounded-full bg-surface-overlay accent-primary sm:w-24"
+								/>
+								<span
+									class="w-7 text-right font-mono text-[10px] text-foreground"
+									>{mapRotation}°</span
+								>
+							</div>
+						</div>
+					</div>
+
+					<div class="relative w-full flex-1">
+						<div class="absolute inset-0">
+							<TrackMap
+								trackPath={engine.trackPath}
+								activeDots={mapDots}
+								corners={showCornersOnMap ? trackCorners : []}
+								bind:rotation={mapRotation}
+								showRotationGUI={false}
 							/>
-							<span class="w-7 text-right font-mono text-[10px] text-foreground"
-								>{mapRotation}°</span
-							>
 						</div>
 					</div>
 				</div>
-
-				<div class="relative w-full flex-1">
-					<div class="absolute inset-0">
-						<TrackMap
-							trackPath={engine.trackPath}
-							activeDots={mapDots}
-							corners={showCornersOnMap ? trackCorners : []}
-							bind:rotation={mapRotation}
-							showRotationGUI={false}
-						/>
-					</div>
-				</div>
 			</div>
-		</div>
 
-		<!-- Bottom Bar: Timeline Controls -->
-	{:else}
-		<!-- Empty State -->
-		<div
-			class="flex flex-1 items-center justify-center rounded-xl border border-divider bg-surface"
-		>
-			<p
-				class="flex items-center justify-center gap-3 text-sm font-semibold tracking-widest text-muted-foreground uppercase"
+			<!-- Bottom Bar: Timeline Controls -->
+		{:else}
+			<!-- Empty State -->
+			<div
+				class="flex flex-1 items-center justify-center rounded-xl border border-divider bg-surface"
 			>
-				Session Data Not Available
-			</p>
-		</div>
-	{/if}
+				<p
+					class="flex items-center justify-center gap-3 text-sm font-semibold tracking-widest text-muted-foreground uppercase"
+				>
+					Session Data Not Available
+				</p>
+			</div>
+		{/if}
 	</div>
 </div>

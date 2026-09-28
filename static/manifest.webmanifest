@@ -1,0 +1,17 @@
+{
+  "name": "FullThrottle - F1 Telemetry & Replays",
+  "short_name": "FullThrottle",
+  "description": "Free and open-source Formula 1 telemetry charts and interactive session replays in your browser.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0f12",
+  "theme_color": "#0d0f12",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
