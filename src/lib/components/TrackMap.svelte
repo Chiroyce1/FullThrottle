@@ -4,7 +4,7 @@
 	import type { TrackCorner } from "$lib/track-corners";
 
 	// ─── Constants ────────────────────────────────────────────────────────
-	const MARGIN = 30; // Canvas padding in pixels.
+	const MARGIN = 16; // Canvas padding in pixels.
 	const TRACK_STROKE_WIDTH = 5; // Track line thickness.
 	const DELTA_STROKE_WIDTH = 2; // Speed delta overlay thickness.
 	const GLOW_RADIUS = 1; // Outer glow size for driver dots.
@@ -15,7 +15,7 @@
 	const TEXT_FONT_SIZE = "11px"; // Driver label font size.
 	const ZOOM_MIN = 1; // Minimum zoom level.
 	const ZOOM_MAX = 10; // Maximum zoom level.
-	const VIEWPORT_PADDING_RATIO = 0.25; // Extra viewport padding as track size ratio.
+	const VIEWPORT_PADDING_RATIO = 0.08; // Extra viewport padding as track size ratio.
 	const CORNER_FONT_SIZE = "9px"; // Corner label font size.
 	const CORNER_LABEL_PADDING_X = 2; // Horizontal padding around corner text.
 	const CORNER_LABEL_PADDING_Y = 1.5; // Vertical padding around corner text.
@@ -80,7 +80,8 @@
 	// Keep track of zoom non-reactively because D3 handles the DOM updates directly
 	let currentZoom = 1;
 	// Size of the SVG viewport, set when the track is drawn — reused for rotation center
-	let svgSize = 0;
+	let svgWidth = 0;
+	let svgHeight = 0;
 
 	function cornerMarkerPosition(corner: TrackCorner): { x: number; y: number } {
 		if (!xScale || !yScale) return { x: 0, y: 0 };
@@ -114,15 +115,10 @@
 			const containerSelection = d3.select(curContainer);
 			containerSelection.selectAll("*").remove();
 
-			// Base scale off the smallest container dimension to ensure 1:1 square
-			const size =
-				Math.round(
-					Math.min(
-						width || curContainer.clientWidth,
-						height || curContainer.clientHeight || width || curContainer.clientWidth,
-					),
-				) || 300;
-			svgSize = size; // store for rotation effect
+			const w = Math.round(width || curContainer.clientWidth || 300);
+			const h = Math.round(height || curContainer.clientHeight || 300);
+			svgWidth = w;
+			svgHeight = h;
 
 			const xExtent = d3.extent(
 				trackPath,
@@ -133,27 +129,35 @@
 				(d: { x: number; y: number }) => d.y,
 			) as [number, number];
 
-			const xSpan = xExtent[1] - xExtent[0];
-			const ySpan = yExtent[1] - yExtent[0];
-
-			const maxDimension = Math.max(xSpan, ySpan) || 1;
+			const xSpan = Math.max(xExtent[1] - xExtent[0], 1);
+			const ySpan = Math.max(yExtent[1] - yExtent[0], 1);
 			const xMid = (xExtent[1] + xExtent[0]) / 2;
 			const yMid = (yExtent[1] + yExtent[0]) / 2;
-			const halfRange = maxDimension * (0.5 + VIEWPORT_PADDING_RATIO);
 
-			// Keep a padded square viewport so off-track excursions remain visible.
-			const squareXDomain = [xMid - halfRange, xMid + halfRange];
-			const squareYDomain = [yMid - halfRange, yMid + halfRange];
+			// Usable drawing area inside the SVG
+			const innerW = Math.max(w - 2 * MARGIN, 50);
+			const innerH = Math.max(h - 2 * MARGIN, 50);
+
+			// Add small padding around track geometry so dots and corner badges have room
+			const paddedXSpan = xSpan * (1 + 2 * VIEWPORT_PADDING_RATIO);
+			const paddedYSpan = ySpan * (1 + 2 * VIEWPORT_PADDING_RATIO);
+
+			// Pixels per meter — uniform across X and Y to prevent geometric distortion
+			const pixelsPerMeter = Math.min(innerW / paddedXSpan, innerH / paddedYSpan);
+
+			// Half range in meters displayed along X and Y axes
+			const halfDomainX = (w / 2) / pixelsPerMeter;
+			const halfDomainY = (h / 2) / pixelsPerMeter;
 
 			const _xScale = d3
 				.scaleLinear()
-				.domain(squareXDomain)
-				.range([MARGIN, size - MARGIN]);
-			// Y-axis inverted in SVG vs physical telemetry coordinates usually
+				.domain([xMid - halfDomainX, xMid + halfDomainX])
+				.range([0, w]);
+
 			const _yScale = d3
 				.scaleLinear()
-				.domain(squareYDomain)
-				.range([size - MARGIN, MARGIN]);
+				.domain([yMid - halfDomainY, yMid + halfDomainY])
+				.range([h, 0]);
 
 			xScale = _xScale;
 			yScale = _yScale;
@@ -197,7 +201,7 @@
 				.append("svg")
 				.attr("width", "100%")
 				.attr("height", "100%")
-				.attr("viewBox", `0 0 ${size} ${size}`)
+				.attr("viewBox", `0 0 ${w} ${h}`)
 				.attr("preserveAspectRatio", "xMidYMid meet")
 				.call(zoom);
 
@@ -211,7 +215,7 @@
 				// We attach properties here so Svelte knows to reactive-update this rotateGroup externally
 				rotateGroup?.attr(
 					"transform",
-					`rotate(${rotation}, ${size / 2}, ${size / 2})`,
+					`rotate(${rotation}, ${w / 2}, ${h / 2})`,
 				);
 			});
 
@@ -487,10 +491,10 @@
 	// EFFECT 5: Apply rotation when `rotation` changes
 	$effect(() => {
 		const r = rotation;
-		if (!rotateGroup || svgSize === 0) return;
+		if (!rotateGroup || svgWidth === 0 || svgHeight === 0) return;
 
-		const cx = svgSize / 2;
-		const cy = svgSize / 2;
+		const cx = svgWidth / 2;
+		const cy = svgHeight / 2;
 		rotateGroup.attr("transform", `rotate(${r}, ${cx}, ${cy})`);
 
 		if (cornersGroup) {
@@ -540,7 +544,7 @@
 
 	<!-- The core map container entirely driven by D3 now -->
 	<div
-		class="flex h-full w-full shrink-0 items-center justify-center p-4 lg:p-8"
+		class="flex h-full w-full shrink-0 items-center justify-center p-2 sm:p-4"
 	>
 		<div
 			bind:this={container}

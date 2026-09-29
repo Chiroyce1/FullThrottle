@@ -55,8 +55,8 @@
     isLast?: boolean;
   }>();
 
-  let width = $state(800);
-  const margin = { top: 10, right: 10, bottom: 20, left: 45 };
+  let width = $state(320);
+  const margin = { top: 10, right: 16, bottom: 20, left: 45 };
 
   const innerWidth = $derived(Math.max(0, width - margin.left - margin.right));
   const innerHeight = $derived(
@@ -326,24 +326,24 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="relative w-full {isLast
+  class="relative w-full min-w-0 max-w-full overflow-hidden {isLast
     ? ''
-    : 'border-b border-divider'} py-2.5 select-none"
+    : 'border-b border-divider/50'} py-2.5 select-none"
   bind:clientWidth={width}
 >
   <!-- Label + hover readout row -->
-  <div class="mb-1 flex items-center justify-between px-2">
-    <div class="flex items-center gap-4">
+  <div class="mb-1 flex min-w-0 items-center justify-between gap-2 px-2">
+    <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
       <span
-        class="text-xs font-mono font-bold tracking-wider text-foreground uppercase"
+        class="text-xs font-mono font-bold tracking-wider text-foreground uppercase shrink-0"
       >
         {label}
         {#if unit}<span class="text-on-surface-muted"> ({unit})</span>{/if}
       </span>
       {#if series.length > 1}
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
           {#each series as s}
-            <div class="flex items-center gap-1.5">
+            <div class="flex items-center gap-1.5 shrink-0">
               <div
                 class="h-1.5 w-1.5 rounded-full"
                 style="background-color:{s.color}"
@@ -358,7 +358,7 @@
       {/if}
     </div>
 
-    <div class="flex items-center gap-3">
+    <div class="flex shrink-0 items-center gap-2 sm:gap-3">
       {#each hoverValues as hv}
         {#if hv.value !== null}
           <span
@@ -379,7 +379,7 @@
       bind:this={svgRef}
       {width}
       {height}
-      class="block overflow-visible font-mono"
+      class="block max-w-full overflow-hidden font-mono"
       style="cursor: crosshair; touch-action: pan-y;"
       onmousedown={handleMouseDown}
       onmousemove={handleMouseMove}
@@ -473,7 +473,7 @@
             clip-path={`url(#${clipId})`}
           />
           <text
-            x={c.px}
+            x={Math.min(innerWidth - 8, Math.max(8, c.px))}
             y={-2}
             font-size="8"
             font-weight="600"
@@ -527,7 +527,11 @@
               x={xScale(tick)}
               y="12"
               font-size="9"
-              text-anchor="middle"
+              text-anchor={xScale(tick) > innerWidth - 20
+                ? "end"
+                : xScale(tick) < 20
+                  ? "start"
+                  : "middle"}
               class="fill-zinc-600 dark:fill-zinc-400 font-mono font-medium"
             >
               {tick >= 1000 ? (tick / 1000).toFixed(1) + "k" : tick.toFixed(0)}m

@@ -98,6 +98,7 @@
   let trackCorners = $state<TrackCorner[]>([]);
   let lastCornerLocation = $state("");
   let showCorners = $state(true);
+  let showMap = $state(true);
 
   $effect(() => {
     const rd = tm.roundData(0);
@@ -266,22 +267,7 @@
       </div>
 
       <div class="hidden md:flex flex-wrap items-center gap-2">
-        {#if !tm.isLoading && tm.needsReloadAny}
-          <span
-            class="font-mono text-[10px] text-amber-400 uppercase animate-pulse mr-1"
-            >Selection changed</span
-          >
-        {/if}
-        <!-- Corners: subtle toggle button -->
-        <button
-          onclick={() => (showCorners = !showCorners)}
-          title={showCorners ? "Hide corner numbers" : "Show corner numbers"}
-          class="h-8 px-2.5 rounded border font-mono text-[11px] font-semibold tracking-wider uppercase transition-colors {showCorners
-            ? 'border-border bg-surface-raised text-foreground shadow-xs'
-            : 'border-border/40 bg-transparent text-muted-foreground hover:bg-surface-raised/50 hover:text-foreground'}"
-        >
-          Corners
-        </button>
+
         <Button
           onclick={loadData}
           disabled={!tm.canLoadData || tm.isLoading}
@@ -313,35 +299,29 @@
       </div>
     </div>
 
-    <!-- Slot rows toggle (desktop only — mobile uses the Setup tab) -->
+    <!-- Slot rows toggle (desktop only) -->
     <button
-      class="hidden w-full md:flex items-center justify-between px-4 py-1.5 text-xs font-mono font-bold uppercase text-on-surface-subtle hover:text-on-surface hover:bg-surface-raised transition-colors border-b border-divider"
+      class="hidden w-full md:flex items-center gap-2 px-4 py-1 text-[10px] font-mono font-bold tracking-wider uppercase text-on-surface-subtle hover:text-on-surface transition-colors border-b border-divider"
       onclick={() => (selectorsExpanded = !selectorsExpanded)}
     >
-      <span class="flex items-center gap-2">
-        <span
-          >{selectorsExpanded
-            ? "Hide Configuration"
-            : "Show Configuration"}</span
-        >
-        {#if !selectorsExpanded && slotTlas.length > 0}
-          <span class="text-on-surface-subtle"
-            >({slotTlas.filter(Boolean).join(" vs ")})</span
-          >
-        {/if}
-      </span>
       <svg
-        width="16"
-        height="16"
+        width="12"
+        height="12"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        stroke-width="2"
+        stroke-width="2.5"
         class:rotate-180={selectorsExpanded}
-        class="transition-transform"
+        class="transition-transform shrink-0"
       >
         <path d="M6 9l6 6 6-6" />
       </svg>
+      <span>Config</span>
+      {#if !selectorsExpanded && slotTlas.length > 0}
+        <span class="text-on-surface-muted font-normal normal-case tracking-normal text-[11px]"
+          >{slotTlas.filter(Boolean).join(" vs ")}</span
+        >
+      {/if}
     </button>
 
     <!-- Slot rows (desktop only — mobile uses the Setup tab) -->
@@ -374,7 +354,7 @@
   <!-- ── Mobile tab bar ─────────────────────────────────────────────── -->
   {#if innerWidth < 768}
     <div
-      class="flex shrink-0 items-center gap-1 border-b border-divider bg-surface px-2 py-1.5"
+      class="flex shrink-0 items-center bg-surface border-b border-divider"
       role="tablist"
       aria-label="Telemetry sections"
     >
@@ -382,10 +362,10 @@
         role="tab"
         aria-selected={mobileTab === "setup"}
         onclick={() => (mobileTab = "setup")}
-        class="h-11 flex-1 rounded-md font-mono text-xs font-black tracking-widest uppercase transition-colors {mobileTab ===
+        class="h-9 flex-1 font-mono text-[11px] font-black tracking-widest uppercase transition-colors border-b-2 {mobileTab ===
         'setup'
-          ? 'bg-primary/15 text-primary'
-          : 'text-on-surface-subtle'}"
+          ? 'border-primary text-on-surface'
+          : 'border-transparent text-on-surface-subtle'}"
       >
         Setup
       </button>
@@ -393,10 +373,10 @@
         role="tab"
         aria-selected={mobileTab === "charts"}
         onclick={() => (mobileTab = "charts")}
-        class="h-11 flex-1 rounded-md font-mono text-xs font-black tracking-widest uppercase transition-colors {mobileTab ===
+        class="h-9 flex-1 font-mono text-[11px] font-black tracking-widest uppercase transition-colors border-b-2 {mobileTab ===
         'charts'
-          ? 'bg-primary/15 text-primary'
-          : 'text-on-surface-subtle'}"
+          ? 'border-primary text-on-surface'
+          : 'border-transparent text-on-surface-subtle'}"
       >
         Charts
       </button>
@@ -424,10 +404,35 @@
     {:else if allSeries.length > 0}
       <!-- ── Charts column ──────────────────────────────────────────── -->
       <div
-        class="custom-scrollbar h-full min-h-0 w-full md:flex-1 overflow-y-auto rounded-lg border border-divider bg-surface transition-opacity duration-200"
+        class="custom-scrollbar h-full min-h-0 w-full md:flex-1 overflow-y-auto bg-surface transition-opacity duration-200"
         class:opacity-60={tm.isLoading}
       >
         <LapStats slots={lapStatsSlots} {hudRows} />
+
+        <!-- Chart toolbar -->
+        <div
+          class="flex shrink-0 items-center justify-between border-b border-divider px-3 py-1"
+        >
+          <div class="flex items-center gap-1.5">
+            <button
+              onclick={() => (showCorners = !showCorners)}
+              class="h-7 px-2 rounded-sm border font-mono text-[10px] font-semibold tracking-wider uppercase transition-colors {showCorners
+                ? 'border-border bg-surface-raised text-foreground'
+                : 'border-border/40 bg-transparent text-muted-foreground hover:text-foreground'}"
+            >
+              Corners
+            </button>
+          </div>
+          <button
+            onclick={() => {
+              xDomain = null;
+            }}
+            disabled={!xDomain}
+            class="h-7 px-2 rounded-sm border border-divider font-mono text-[10px] font-semibold tracking-wider text-on-surface-subtle uppercase disabled:opacity-30"
+          >
+            Reset zoom
+          </button>
+        </div>
 
         <TelemetryCharts
           series={allSeries}
@@ -449,10 +454,10 @@
         role="separator"
         aria-label="Resize sidebar"
         onpointerdown={startResize}
-        class="hidden md:block w-3 shrink-0 cursor-col-resize self-stretch relative group"
+        class="hidden md:flex w-1.5 shrink-0 cursor-col-resize self-stretch items-center justify-center group"
       >
         <div
-          class="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-divider transition-colors group-hover:bg-primary {isResizing
+          class="h-full w-px bg-divider transition-colors group-hover:bg-primary {isResizing
             ? 'bg-primary'
             : ''}"
         ></div>
@@ -465,10 +470,8 @@
           ? `width:${sidebarWidth}px; max-width:50%;`
           : ""}
       >
-        <!-- Track map card: square aspect ratio -->
-        <div
-          class="flex flex-col rounded-lg border border-divider bg-surface overflow-hidden"
-        >
+        <!-- Track map -->
+        <div class="flex flex-col bg-surface overflow-hidden">
           <div class="relative w-full aspect-square">
             <TrackMap
               trackPath={tm.trackPath}
@@ -562,34 +565,49 @@
           </div>
         </div>
       {:else if allSeries.length > 0}
-        <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div class="flex min-h-0 flex-1 flex-col overflow-hidden w-full max-w-full">
           <div
-            class="flex shrink-0 items-center justify-between border-b border-divider px-3 py-1.5"
+            class="flex shrink-0 items-center justify-between border-b border-divider px-3 py-1"
           >
-            <button
-              onclick={() => (showCorners = !showCorners)}
-              class="h-9 px-3 rounded border font-mono text-[11px] font-semibold tracking-wider uppercase transition-colors {showCorners
-                ? 'border-border bg-surface-raised text-foreground'
-                : 'border-border/40 bg-transparent text-muted-foreground'}"
-            >
-              Corners
-            </button>
+            <div class="flex items-center gap-1.5">
+              <button
+                onclick={() => (showMap = !showMap)}
+                class="h-7 px-2 rounded-sm border font-mono text-[10px] font-semibold tracking-wider uppercase transition-colors {showMap
+                  ? 'border-border bg-surface-raised text-foreground'
+                  : 'border-border/40 bg-transparent text-muted-foreground'}"
+              >
+                Map
+              </button>
+              <button
+                onclick={() => (showCorners = !showCorners)}
+                class="h-7 px-2 rounded-sm border font-mono text-[10px] font-semibold tracking-wider uppercase transition-colors {showCorners
+                  ? 'border-border bg-surface-raised text-foreground'
+                  : 'border-border/40 bg-transparent text-muted-foreground'}"
+              >
+                Corners
+              </button>
+            </div>
             <button
               onclick={() => {
                 xDomain = null;
               }}
               disabled={!xDomain}
-              class="h-9 px-3 rounded border border-divider font-mono text-[11px] font-semibold tracking-wider text-on-surface-subtle uppercase disabled:opacity-40"
+              class="h-7 px-2 rounded-sm border border-divider font-mono text-[10px] font-semibold tracking-wider text-on-surface-subtle uppercase disabled:opacity-30"
             >
               Reset zoom
             </button>
           </div>
-          <div class="min-h-0 flex-1 overflow-y-auto">
-            <!-- Pinned: stats + track stay visible while charts scroll,
-                 so scrubbing always shows where the driver is -->
+          <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full">
+            <!-- Pinned: stats stay visible while charts scroll -->
             <div class="sticky top-0 z-20 bg-surface">
               <LapStats slots={lapStatsSlots} {hudRows} />
-              <div class="h-40 shrink-0 border-b border-divider">
+            </div>
+
+            <!-- Track map: centered on page, half height -->
+            {#if showMap}
+              <div
+                class="h-[50vh] min-h-[300px] w-full shrink-0 border-b border-divider/50 bg-surface flex items-center justify-center"
+              >
                 <TrackMap
                   trackPath={tm.trackPath}
                   {activeDots}
@@ -603,7 +621,8 @@
                   corners={showCorners ? trackCorners : []}
                 />
               </div>
-            </div>
+            {/if}
+
             <TelemetryCharts
               series={allSeries}
               highlights={allLico}
@@ -616,7 +635,6 @@
                 hoverDist = x;
               }}
               corners={showCorners ? trackCorners : []}
-              enableSwitcher={true}
             />
           </div>
         </div>
@@ -638,36 +656,38 @@
       {/if}
     {/if}
   </main>
-  <!-- ── Mobile bottom action bar ─────────────────────────────────────── -->
-  <div
-    class="shrink-0 border-t border-divider bg-surface/95 px-3 pt-2 backdrop-blur pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-  >
-    {#if !tm.isLoading && tm.needsReloadAny}
-      <p
-        class="mb-1.5 text-center font-mono text-[10px] tracking-widest text-amber-400 uppercase animate-pulse"
-      >
-        Selection changed — reload to update
-      </p>
-    {/if}
-    <div class="flex">
-      <button
-        onclick={loadData}
-        disabled={!tm.canLoadData || tm.isLoading}
-        class="h-10 flex-1 inline-flex items-center justify-center gap-2 rounded-md border font-mono text-xs font-black tracking-widest uppercase transition-all disabled:opacity-40 {tm.needsReloadAny
-          ? 'border-amber-400 bg-amber-400 text-black animate-pulse'
-          : 'border-primary bg-primary text-primary-foreground'}"
-      >
-        {#if tm.isLoading}
-          <div
-            class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
-          ></div>
-          Loading…
-        {:else}
-          Load Data
-        {/if}
-      </button>
+  <!-- ── Mobile bottom action bar (only on setup or when selection changed) ── -->
+  {#if mobileTab === "setup" || tm.needsReloadAny}
+    <div
+      class="shrink-0 border-t border-divider bg-surface/95 px-3 pt-2 backdrop-blur pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+    >
+      {#if !tm.isLoading && tm.needsReloadAny}
+        <p
+          class="mb-1.5 text-center font-mono text-[10px] tracking-widest text-amber-500 uppercase animate-pulse"
+        >
+          Selection changed — reload to update
+        </p>
+      {/if}
+      <div class="flex">
+        <button
+          onclick={loadData}
+          disabled={!tm.canLoadData || tm.isLoading}
+          class="h-10 flex-1 inline-flex items-center justify-center gap-2 rounded-sm border font-mono text-xs font-black tracking-widest uppercase transition-all disabled:opacity-40 {tm.needsReloadAny
+            ? 'border-amber-400 bg-amber-400 text-black animate-pulse'
+            : 'border-primary bg-primary text-primary-foreground'}"
+        >
+          {#if tm.isLoading}
+            <div
+              class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
+            ></div>
+            Loading…
+          {:else}
+            {mobileTab === "setup" ? "Load Telemetry" : "Reload Telemetry"}
+          {/if}
+        </button>
+      </div>
     </div>
-  </div>
+  {/if}
   {/if}
 </div>
 

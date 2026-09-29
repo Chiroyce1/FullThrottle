@@ -56,28 +56,33 @@
 </script>
 
 <div
-	class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-divider bg-surface-raised/60 px-4 py-1.5 backdrop-blur-md"
+	class="sticky top-0 z-10 flex w-full min-w-0 max-w-full items-center justify-between gap-2 border-b border-divider bg-surface-raised/80 px-2 sm:px-4 py-1.5 backdrop-blur-md"
 >
-  <!-- Per-slot stats (lap time + sectors + delta + compound) -->
-  <div class="flex min-w-0 flex-1 flex-col gap-1 overflow-x-auto md:overflow-visible">
-    {#each slots as slot, i}
-      {#if slot.lap}
-        <div class="flex flex-nowrap md:flex-wrap items-center gap-x-2.5 whitespace-nowrap">
+	<!-- Per-slot stats (lap time + sectors + delta + compound) -->
+	<div
+		class="no-scrollbar flex min-w-0 flex-1 flex-col gap-1 overflow-x-auto md:overflow-visible"
+	>
+		{#each slots as slot, i}
+			{#if slot.lap}
+				<div
+					class="flex flex-nowrap items-center gap-x-1.5 sm:gap-x-2.5 whitespace-nowrap"
+				>
 					<!-- Driver TLA -->
 					<span
-						class="font-mono text-[10px] font-black tracking-wider"
+						class="font-mono text-[10px] font-black tracking-wider shrink-0"
 						style="color:{slot.color}">{slot.tla}</span
 					>
 
 					<!-- Lap time -->
-					<span class="font-mono text-xs text-on-surface tabular-nums"
+					<span
+						class="font-mono text-[11px] sm:text-xs font-semibold text-on-surface tabular-nums shrink-0"
 						>{fmt(slot.lap.lap_time)}</span
 					>
 
 					<!-- Hover speed — only shows while scrubbing -->
 					{#if isHovering && hudRows[i]}
 						<span
-							class="font-mono text-xs tabular-nums"
+							class="font-mono text-[10px] sm:text-xs tabular-nums shrink-0"
 							style="color:{slot.color}"
 						>
 							{Math.round(hudRows[i]!.speed || 0)} km/h
@@ -91,24 +96,30 @@
 							(si === 1 && i === bestS2) ||
 							(si === 2 && i === bestS3)}
 						{@const val = slot.lap[sKey]}
-						<div class="flex items-center gap-1">
-							<span class="font-mono text-[9px] text-on-surface-muted uppercase"
+						<div class="flex items-center gap-0.5 sm:gap-1 shrink-0">
+							<span
+								class="font-mono text-[8px] sm:text-[9px] text-on-surface-muted uppercase"
 								>S{si + 1}</span
 							>
 							<span
-								class="font-mono text-[11px] tabular-nums font-medium"
-								class:text-amber-400={isBest}
-								class:font-semibold={isBest}>{fmt(val)}</span
+								class="font-mono text-[10px] sm:text-[11px] tabular-nums"
+								class:text-amber-700={isBest}
+								class:dark:text-yellow-400={isBest}
+								class:font-bold={isBest}
+								class:font-medium={!isBest}>{fmt(val)}</span
 							>
 						</div>
 					{/each}
 
-					<!-- Compound -->
+					<!-- Compound (hidden on mobile to prevent S3 truncation) -->
 					{#if slot.lap.compound}
-						<CompoundBadge compound={slot.lap.compound} size={16} />
-						<span class="font-mono text-[9px] text-on-surface-muted"
-							>L{slot.lap.tyre_life}</span
-						>
+						<div class="hidden sm:flex items-center gap-1 shrink-0">
+							<CompoundBadge compound={slot.lap.compound} size={14} />
+							<span
+								class="font-mono text-[8px] sm:text-[9px] text-on-surface-muted"
+								>L{slot.lap.tyre_life}</span
+							>
+						</div>
 					{/if}
 
 					<!-- Delta vs slot 0 -->
@@ -116,9 +127,9 @@
 						{@const d = delta(slot.lap.lap_time, slots[0].lap.lap_time)}
 						{#if d}
 							<span
-								class="font-mono text-[10px] tabular-nums"
-								class:text-red-400={!d.startsWith("-")}
-								class:text-green-400={d.startsWith("-")}>{d}</span
+								class="font-mono text-[9px] sm:text-[10px] tabular-nums shrink-0 font-medium"
+								class:text-red-500={!d.startsWith("-")}
+								class:text-emerald-500={d.startsWith("-")}>{d}</span
 							>
 						{/if}
 					{/if}
