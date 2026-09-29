@@ -57,9 +57,7 @@
   }
 
   onMount(() => {
-    const isMobile =
-      window.innerWidth < 768 ||
-      ("ontouchstart" in window && window.innerWidth < 1024);
+    const isMobile = window.innerWidth < 768;
     selectorsExpanded = !isMobile;
 
     fetch("/metadata.json")

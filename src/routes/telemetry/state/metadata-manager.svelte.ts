@@ -1,7 +1,7 @@
 import type { TelemetryMeta } from "$lib/types";
 import { generateJsonUrl } from "$lib";
-import type { MetaFetchTarget } from "$lib/metadata-types";
-import { bestLapFromMeta } from "$lib/metadata-types";
+import type { MetaFetchTarget } from "$lib/metadata/types";
+import { bestLapFromMeta } from "$lib/metadata/types";
 
 export class MetadataManager {
 	private readonly seqs = new Map<string, number>();
@@ -84,7 +84,8 @@ export class MetadataManager {
 
 		return fetchPromise
 			.then((d) => {
-				if (this.seqs.get(slot.id) !== currentSeq || controller.signal.aborted) return;
+				if (this.seqs.get(slot.id) !== currentSeq || controller.signal.aborted)
+					return;
 				slot.meta = d;
 				slot.metaLoading = false;
 
@@ -98,7 +99,8 @@ export class MetadataManager {
 				}
 			})
 			.catch(() => {
-				if (this.seqs.get(slot.id) !== currentSeq || controller.signal.aborted) return;
+				if (this.seqs.get(slot.id) !== currentSeq || controller.signal.aborted)
+					return;
 				slot.meta = null;
 				slot.metaLoading = false;
 				if (this.controllers.get(slot.id) === controller) {

@@ -5,7 +5,7 @@
 		QualiPhaseEntry,
 		SectorStatus,
 	} from "$lib/types";
-	import { type SessionMode, formatSectorTime } from "$lib/utils";
+	import { type SessionMode, formatSectorTime, getDriverAbbreviation } from "$lib/utils";
 	import CompoundBadge from "$lib/components/CompoundBadge.svelte";
 
 	const {
@@ -29,7 +29,6 @@
 	const isQualifying = $derived(sessionMode === "qualifying");
 	const isTimedSession = $derived(sessionMode === "timed");
 
-	// UPDATED: Removed .slice(0, 3) to show full names
 	function driverName(meta: DriverMeta | null | undefined, id: string): string {
 		if (meta?.last_name) return meta.last_name.toUpperCase();
 		if (meta?.abbreviation) return meta.abbreviation.toUpperCase();
@@ -38,6 +37,10 @@
 			return token.toUpperCase();
 		}
 		return id.toUpperCase();
+	}
+
+	function driverShortName(meta: DriverMeta | null | undefined, id: string): string {
+		return getDriverAbbreviation(meta, id).slice(0, 3);
 	}
 
 	function highestPhase(entry: QualiPhaseEntry | undefined): string {
@@ -62,21 +65,21 @@
 	}
 
 	function getSectorTimeClass(state: SectorStatus | undefined): string {
-		if (state === "purple") return "text-purple-200";
-		if (state === "green") return "text-green-200";
-		if (state === "yellow") return "text-yellow-100";
+		if (state === "purple") return "text-purple-700 dark:text-purple-300";
+		if (state === "green") return "text-emerald-700 dark:text-green-400";
+		if (state === "yellow") return "text-amber-800 dark:text-yellow-300";
 		return "text-on-surface";
 	}
 </script>
 
 <div
-	class="flex h-full w-full flex-col overflow-hidden rounded-lg border border-divider bg-surface shadow-xl"
+	class="flex h-full w-full flex-col overflow-hidden rounded-lg border border-divider bg-surface"
 >
 	<div
-		class="flex shrink-0 items-center border-b border-divider bg-surface-raised px-4 py-3"
+		class="flex shrink-0 items-center justify-between border-b border-divider bg-surface-raised/40 px-3 py-2 sm:py-1.5"
 	>
 		<h3
-			class="text-xs font-bold tracking-widest text-on-surface-muted uppercase"
+			class="font-mono text-xs font-bold tracking-widest text-on-surface-muted uppercase"
 		>
 			{isQualifying
 				? "Qualifying Order"
@@ -93,15 +96,15 @@
 
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
 			<div
-				class="group flex cursor-pointer items-center rounded p-2 transition-colors {focusedDriver ===
+				class="group flex cursor-pointer items-center rounded-md p-2 transition-colors {focusedDriver ===
 				id
-					? 'border-l-2 border-red-500 bg-surface-overlay'
-					: 'border-l-2 border-transparent hover:bg-surface-raised/50'}"
+					? 'bg-surface-overlay'
+					: 'hover:bg-surface-raised/50'}"
 				onclick={() => onSelect(id)}
 				role="button"
 				tabindex="0"
 			>
-				<div class="flex w-36 shrink-0 items-center gap-2">
+				<div class="flex w-20 sm:w-36 shrink-0 items-center gap-1.5 sm:gap-2">
 					<span
 						class="w-4 shrink-0 text-center font-mono text-xs font-bold text-on-surface-subtle"
 					>
@@ -121,24 +124,25 @@
 
 					<div class="flex min-w-0 flex-col">
 						<span
-							class="truncate font-mono text-md ml-1 font-black text-on-surface transition-colors group-hover:text-red-400"
+							class="truncate font-mono text-sm sm:text-md ml-0.5 sm:ml-1 font-black text-on-surface"
 						>
-							{driverName(meta, id)}
+							<span class="sm:hidden">{driverShortName(meta, id)}</span>
+							<span class="hidden sm:inline">{driverName(meta, id)}</span>
 						</span>
 						<div class="mt-0.5 flex items-center gap-1">
 							{#if isQualifying && phase}
 								<span
 									class="rounded-sm px-1 font-mono text-[9px] font-black
                                     {phase === 'Q3'
-										? 'border border-green-500/50 bg-green-500/20 text-green-400'
+										? 'border border-green-500/50 bg-green-500/20 text-emerald-700 dark:text-green-400'
 										: phase === 'Q2'
-											? 'border border-yellow-500/50 bg-yellow-500/20 text-yellow-400'
+											? 'border border-yellow-500/50 bg-yellow-500/20 text-amber-800 dark:text-yellow-400'
 											: 'border border-on-surface-subtle/30 bg-surface-overlay text-on-surface-subtle'}"
 									>{phase}</span
 								>
 							{:else if row.drs > 8}
 								<span
-									class="w-max rounded-sm border border-green-500/50 bg-green-500/20 px-1 font-mono text-[9px] font-black tracking-widest text-green-400"
+									class="w-max rounded-sm border border-green-500/50 bg-green-500/20 px-1 font-mono text-[9px] font-black tracking-widest text-emerald-700 dark:text-green-400"
 									>DRS</span
 								>
 							{/if}
@@ -147,7 +151,7 @@
 				</div>
 
 				<div
-					class="ml-1 flex min-w-0 flex-1 items-center justify-end gap-4 sm:gap-6 text-right"
+					class="ml-1 flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-6 text-right"
 				>
 					{#if sessionMode === "race" && row.position === 0 && row.distance > 0}
 						<span
@@ -160,15 +164,15 @@
 						>
 							{#if qualiEntry.q3 !== null}
 								<div class="flex items-center gap-1.5">
-									<span class="text-[8px] font-bold text-green-500">Q3</span>
-									<span class="font-mono text-[10px] font-bold text-green-400"
+									<span class="text-[8px] font-bold text-emerald-700 dark:text-green-500">Q3</span>
+									<span class="font-mono text-[10px] font-bold text-emerald-700 dark:text-green-400"
 										>{formatLapTime(qualiEntry.q3)}</span
 									>
 								</div>
 							{:else if qualiEntry.q2 !== null}
 								<div class="flex items-center gap-1.5">
-									<span class="text-[8px] font-bold text-yellow-500">Q2</span>
-									<span class="font-mono text-[10px] text-yellow-400"
+									<span class="text-[8px] font-bold text-amber-800 dark:text-yellow-500">Q2</span>
+									<span class="font-mono text-[10px] text-amber-800 dark:text-yellow-400"
 										>{formatLapTime(qualiEntry.q2)}</span
 									>
 								</div>
@@ -224,7 +228,7 @@
 										>
 										<span
 											class="font-mono text-[10px] {row._is_purple
-												? 'font-bold text-purple-400'
+												? 'font-bold text-purple-700 dark:text-purple-400'
 												: 'text-on-surface-muted'}"
 										>
 											{formatLapTime(row._cached_best_lap)}
@@ -249,41 +253,43 @@
 							</div>
 
 							{#if row._cached_best_lap || row._cached_last_lap || row._sector1_state !== "none"}
-								<div class="flex min-w-0 sm:min-w-32 shrink-0 flex-col items-end gap-0.5 sm:gap-1">
+								<div
+									class="flex min-w-0 sm:min-w-32 shrink-0 flex-col items-end gap-0.5 sm:gap-1"
+								>
 									<div class="flex items-center justify-end gap-0.5 sm:gap-1">
 										<div
-											class="h-1.5 w-6 sm:w-9 rounded-[1px] {getSectorColor(
+											class="h-1.5 w-8 sm:w-9 rounded-[1px] {getSectorColor(
 												row._sector1_state,
 											)}"
 										></div>
 										<div
-											class="h-1.5 w-6 sm:w-9 rounded-[1px] {getSectorColor(
+											class="h-1.5 w-8 sm:w-9 rounded-[1px] {getSectorColor(
 												row._sector2_state,
 											)}"
 										></div>
 										<div
-											class="h-1.5 w-6 sm:w-9 rounded-[1px] {getSectorColor(
+											class="h-1.5 w-8 sm:w-9 rounded-[1px] {getSectorColor(
 												row._sector3_state,
 											)}"
 										></div>
 									</div>
 									<div class="flex items-center justify-end gap-0.5 sm:gap-1">
 										<span
-											class="w-6 sm:w-9 px-0.5 py-px text-center font-mono text-[8px] sm:text-[9px] font-black tabular-nums {getSectorTimeClass(
+											class="w-8 sm:w-9 px-0.5 py-px text-center font-mono text-[8.5px] sm:text-[9px] font-black tabular-nums {getSectorTimeClass(
 												row._sector1_state,
 											)}"
 										>
 											{formatSectorTime(row._sector1_time)}
 										</span>
 										<span
-											class="w-6 sm:w-9 px-0.5 py-px text-center font-mono text-[8px] sm:text-[9px] font-black tabular-nums {getSectorTimeClass(
+											class="w-8 sm:w-9 px-0.5 py-px text-center font-mono text-[8.5px] sm:text-[9px] font-black tabular-nums {getSectorTimeClass(
 												row._sector2_state,
 											)}"
 										>
 											{formatSectorTime(row._sector2_time)}
 										</span>
 										<span
-											class="w-6 sm:w-9 px-0.5 py-px text-center font-mono text-[8px] sm:text-[9px] font-black tabular-nums {getSectorTimeClass(
+											class="w-8 sm:w-9 px-0.5 py-px text-center font-mono text-[8.5px] sm:text-[9px] font-black tabular-nums {getSectorTimeClass(
 												row._sector3_state,
 											)}"
 										>
@@ -294,17 +300,17 @@
 							{/if}
 						</div>
 
-						<div class="flex w-11 sm:w-14 shrink-0 flex-col items-end gap-0.5">
+						<div class="flex w-12 sm:w-14 shrink-0 flex-col items-end gap-0.5">
 							<span
 								class="flex items-center gap-1 font-mono text-[9px] text-on-surface"
 							>
+								<CompoundBadge compound={row.compound || "UNKNOWN"} size={22} />
 								{#if row.tyre_life !== undefined}
 									<span
-										class="font-mono text-[9px] font-bold text-on-surface-muted"
+										class="font-mono text-[9px] font-bold text-on-surface-muted tabular-nums"
 										>{row.tyre_life}L</span
 									>
 								{/if}
-								<CompoundBadge compound={row.compound || "UNKNOWN"} size={22} />
 							</span>
 						</div>
 					{/if}

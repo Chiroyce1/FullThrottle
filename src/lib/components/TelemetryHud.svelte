@@ -472,7 +472,7 @@
 										>
 										<span
 											class="font-mono text-[10px] font-bold {telemetry?._is_purple
-												? 'text-purple-400'
+												? 'text-purple-700 dark:text-purple-400'
 												: 'text-on-surface-muted'}"
 										>
 											{formatLapTime(bestLap)}
@@ -725,7 +725,7 @@
 						>
 						<span
 							class="font-mono text-[11px] font-bold {telemetry?._is_purple
-								? 'text-purple-400'
+								? 'text-purple-700 dark:text-purple-400'
 								: 'text-on-surface-muted'}"
 						>
 							{formatLapTime(bestLap)}

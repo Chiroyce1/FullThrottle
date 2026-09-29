@@ -508,23 +508,31 @@
 						? 'flex'
 						: 'hidden xl:flex'}"
 				>
-					<!-- Track Map Header: Weather (separate line on mobile) + Corners toggle & Rotation -->
+					<!-- Track Map Header: 2 steps (Line 1: Weather, Line 2: Corners & Rotation) -->
 					<div
-						class="flex shrink-0 flex-col sm:flex-row sm:items-center justify-between gap-x-3 gap-y-2 border-b border-divider bg-surface-raised/40 px-3 py-2 sm:py-1.5"
+						class="flex shrink-0 flex-col border-b border-divider bg-surface-raised/40"
 					>
-						<!-- Weather: on its own line on mobile -->
-						{#if currentWeather}
-							<div class="flex items-center min-w-0 overflow-x-auto">
+						<!-- Step 1: Weather (spans full width, no overflow) -->
+						<div
+							class="flex items-center min-w-0 border-b border-divider/60 px-3 py-1.5 min-h-[31px] overflow-x-auto no-scrollbar"
+						>
+							{#if currentWeather}
 								<WeatherWidget
 									weather={currentWeather}
-									class="bg-transparent px-0 py-0"
+									class="bg-transparent px-0 py-0 flex-nowrap"
 								/>
-							</div>
-						{/if}
+							{:else}
+								<span
+									class="font-mono text-[10px] font-bold tracking-wider text-muted-foreground uppercase"
+								>
+									Track Conditions Unavailable
+								</span>
+							{/if}
+						</div>
 
-						<!-- Controls: Corners toggle (left on mobile, right on desktop) + Rotation Slider -->
+						<!-- Step 2: Controls (Corners toggle and Rotation slider) -->
 						<div
-							class="flex items-center justify-between sm:justify-end gap-3 shrink-0"
+							class="flex items-center justify-between gap-3 px-3 py-1.5 min-h-[31px]"
 						>
 							<!-- Corners toggle -->
 							<button

@@ -8,8 +8,8 @@
 		YearEntry,
 		RoundEntry,
 		SessionEntry,
-	} from "$lib/metadata-types";
-	import { latestYear, latestRound, latestSession } from "$lib/metadata-types";
+	} from "$lib/metadata/types";
+	import { latestYear, latestRound, latestSession } from "$lib/metadata/types";
 
 	const { years = [] } = $props<{ years: YearEntry[] }>();
 

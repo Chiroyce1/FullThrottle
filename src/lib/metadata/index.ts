@@ -1,5 +1,7 @@
-import metadataJson from "../../static/metadata.json";
-import type { YearEntry } from "./metadata-types";
+import type { YearEntry } from "./types";
+
+export * from "./types";
+export * from "./seo";
 
 export interface ReplaySessionMeta {
 	year: number;
@@ -13,16 +15,13 @@ export interface ReplaySessionMeta {
 	sessionLabel: string;
 }
 
-export const allYears: YearEntry[] = (
-	metadataJson as unknown as { years: YearEntry[] }
-).years;
-
-export function getSessionMeta(
+export function findSessionMeta(
+	years: YearEntry[] | undefined,
 	year: string | number,
 	round: string | number,
 	sessionCode: string,
 ): ReplaySessionMeta | null {
-	const y = allYears?.find((item) => String(item.year) === String(year));
+	const y = years?.find((item) => String(item.year) === String(year));
 	const r = y?.rounds.find((item) => String(item.round) === String(round));
 	const s = r?.sessions.find(
 		(item) => item.code.toLowerCase() === String(sessionCode).toLowerCase(),

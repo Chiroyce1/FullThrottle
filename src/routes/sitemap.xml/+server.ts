@@ -1,10 +1,10 @@
 import type { RequestHandler } from "./$types";
-import { SITE_CONFIG, SITE_URL } from "$lib/seo";
-import { allYears } from "$lib/metadata-index";
+import { SITE_CONFIG, SITE_URL } from "$lib/metadata/seo";
+import type { YearEntry } from "$lib/metadata/types";
 
 export const prerender = true;
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ fetch }) => {
 	const staticPages = [
 		SITE_CONFIG.pages.home,
 		SITE_CONFIG.pages.telemetry,
@@ -20,6 +20,17 @@ export const GET: RequestHandler = async () => {
     <changefreq>${page.changefreq}</changefreq>
     <priority>${page.priority}</priority>
   </url>`);
+	}
+
+	let allYears: YearEntry[] = [];
+	try {
+		const res = await fetch("/metadata.json");
+		if (res.ok) {
+			const data = (await res.json()) as { years: YearEntry[] };
+			allYears = data.years || [];
+		}
+	} catch (e) {
+		console.error("Failed to fetch metadata for sitemap:", e);
 	}
 
 	for (const yearEntry of allYears) {

@@ -5,7 +5,7 @@
 	import SessionPicker from "$lib/components/SessionPicker.svelte";
 	import type { PageData } from "./$types";
 	import posthog from "posthog-js";
-	import { latestYear, latestRound, latestSession } from "$lib/metadata-types";
+	import { latestYear, latestRound, latestSession } from "$lib/metadata/types";
 
 	const { data }: { data: PageData } = $props();
 

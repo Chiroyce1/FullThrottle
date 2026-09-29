@@ -10,8 +10,8 @@
 		getFaqSchema,
 		getReplaySeo,
 		type PageRouteKey,
-	} from "$lib/seo";
-	import type { ReplaySessionMeta } from "$lib/metadata-index";
+	} from "$lib/metadata/seo";
+	import type { ReplaySessionMeta } from "$lib/metadata";
 
 	interface Props {
 		route?: PageRouteKey;

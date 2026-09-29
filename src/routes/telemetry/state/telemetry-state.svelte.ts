@@ -12,9 +12,9 @@ import type {
 	SessionEntry,
 	SlotState,
 	MetaFetchTarget,
-} from "$lib/metadata-types";
-import { latestYear, latestRound, latestSession } from "$lib/metadata-types";
-import { bestLapFromMeta, topDrivers } from "$lib/metadata-types";
+} from "$lib/metadata/types";
+import { latestYear, latestRound, latestSession } from "$lib/metadata/types";
+import { bestLapFromMeta, topDrivers } from "$lib/metadata/types";
 import { SLOT_FALLBACK_COLORS } from "$lib/constants";
 
 import { MetadataManager } from "./metadata-manager.svelte";
@@ -25,7 +25,10 @@ export type { YearEntry, RoundEntry, SessionEntry, SlotState };
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function generateSlotId(): string {
-	if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+	if (
+		typeof crypto !== "undefined" &&
+		typeof crypto.randomUUID === "function"
+	) {
 		try {
 			return crypto.randomUUID();
 		} catch {
@@ -190,9 +193,9 @@ export class TelemetryState {
 		// Pre-fill top drivers for both initial slots from the loaded meta
 		const meta = this.slots[0].meta;
 		if (meta) {
-			if (this.slots[1]) {
-				this.slots[1].meta = meta;
-				this.slots[1].metaLoading = false;
+			for (const s of this.slots) {
+				s.meta = meta;
+				s.metaLoading = false;
 			}
 			const defaults = topDrivers(meta, this.slots.length);
 			this.slots.forEach((s, i) => {
@@ -234,8 +237,12 @@ export class TelemetryState {
 
 		// If round wasn't explicitly chosen, attempt to match the same circuit location
 		if (!rEntry && s.round) {
-			const curYearData = this.getYears().find((y) => y.year.toString() === s.year);
-			const curRoundData = curYearData?.rounds.find((r) => r.round.toString() === s.round);
+			const curYearData = this.getYears().find(
+				(y) => y.year.toString() === s.year,
+			);
+			const curRoundData = curYearData?.rounds.find(
+				(r) => r.round.toString() === s.round,
+			);
 			if (curRoundData?.location) {
 				rEntry =
 					yEntry.rounds.find(
@@ -347,7 +354,9 @@ export class TelemetryState {
 	roundData(sid = 0): RoundEntry | undefined {
 		const s = this.slots[sid];
 		if (!s) return undefined;
-		return this.yearData(sid)?.rounds.find((r) => r.round.toString() === s.round);
+		return this.yearData(sid)?.rounds.find(
+			(r) => r.round.toString() === s.round,
+		);
 	}
 
 	selectionKeyByValues(year: string, round: string, session: string): string {
@@ -411,10 +420,7 @@ export class TelemetryState {
 	driverTla(sid: number): string {
 		const slot = this.slots[sid];
 		const m = this.driverMeta(sid);
-		let tla = getDriverAbbreviation(
-			m,
-			slot?.driver || this.badge(sid),
-		);
+		let tla = getDriverAbbreviation(m, slot?.driver || this.badge(sid));
 		const years = new Set(this.slots.map((s) => s.year).filter(Boolean));
 		if (years.size > 1 && slot?.year) {
 			tla = `${tla} '${slot.year.slice(-2)}`;
@@ -450,7 +456,7 @@ export class TelemetryState {
 	// ── Data loading ─────────────────────────────────────────────────────
 
 	async load(dataFrequency: SampleRate) {
-		if (this.#isLoadingData || this.loadFeedback === "loading") {
+		if (this.#isLoadingData) {
 			return;
 		}
 		if (this.#loadFeedbackTimer) clearTimeout(this.#loadFeedbackTimer);
@@ -463,7 +469,8 @@ export class TelemetryState {
 				await Promise.all(Array.from(this.#pendingMeta.values()));
 			}
 
-			const keysToLoad: Array<{ key: string; year: string; filename: string }> = [];
+			const keysToLoad: Array<{ key: string; year: string; filename: string }> =
+				[];
 			for (const s of this.slots) {
 				if (!s.driver || !s.year || !s.round || !s.session) continue;
 				s.hasLoaded = false;

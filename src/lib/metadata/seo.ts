@@ -1,4 +1,4 @@
-import type { ReplaySessionMeta } from "./metadata-index";
+import type { ReplaySessionMeta } from "./index";
 
 export const SITE_CONFIG = {
 	url: "https://fullthrottle.chiroyce.dev",

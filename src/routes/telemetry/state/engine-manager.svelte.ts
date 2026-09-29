@@ -1,9 +1,6 @@
-import {
-	TelemetryEngine,
-	type SampleRate,
-} from "$lib/TelemetryEngine.svelte";
+import { TelemetryEngine, type SampleRate } from "$lib/TelemetryEngine.svelte";
 import type { TelemetryRow, TrackPoint, LapTimingEntry } from "$lib/types";
-import type { SlotState } from "$lib/metadata-types";
+import type { SlotState } from "$lib/metadata/types";
 import { generateJsonUrl, generateParquetUrl } from "$lib";
 
 export type LoadResult = "success" | "empty" | "error";
@@ -19,7 +16,7 @@ export class EngineManager {
 		}
 		this.engines.clear();
 	}
-	
+
 	reset() {
 		this.dispose();
 	}
@@ -53,8 +50,14 @@ export class EngineManager {
 	}
 
 	lapData(slot: SlotState, selectionKey: string | null): TelemetryRow[] {
-		if (!slot.hasLoaded || !slot.driver || !slot.lap || !selectionKey) return [];
-		return this.getEngine(selectionKey)?.getNormalizedLapTelemetry(slot.driver, slot.lap) ?? [];
+		if (!slot.hasLoaded || !slot.driver || !slot.lap || !selectionKey)
+			return [];
+		return (
+			this.getEngine(selectionKey)?.getNormalizedLapTelemetry(
+				slot.driver,
+				slot.lap,
+			) ?? []
+		);
 	}
 
 	trackPath(): TrackPoint[] {
