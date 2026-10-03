@@ -20,6 +20,7 @@ CANONICAL_OVERRIDES = {
     "miami gardens": "miami",
     "bahrain": "sakhir",
     "monte carlo": "monaco",
+    "kuala lumpur": "sepang",
 }
 
 

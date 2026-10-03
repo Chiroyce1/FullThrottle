@@ -26,8 +26,10 @@ vite.config.ts.timestamp-*
 
 
 static/data/*
+TODO.md
 .parquet
 
 __pycache__/
 data_hidden/
 .fastf1_cache/
+docs/

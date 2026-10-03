@@ -170,7 +170,8 @@ def archive_data(year, r_type, round_id, session_id, day=1, output_dirs=None):
                         "sector3": lap['Sector3Time'].total_seconds() if pd.notna(lap['Sector3Time']) else None,
                         "compound": str(lap['Compound']) if pd.notna(lap['Compound']) else None,
                         "tyre_life": int(lap['TyreLife']) if pd.notna(lap['TyreLife']) else None,
-                        "is_personal_best": bool(lap['IsPersonalBest']) if pd.notna(lap['IsPersonalBest']) else False
+                        "is_personal_best": bool(lap['IsPersonalBest']) if pd.notna(lap['IsPersonalBest']) else False,
+                        "lap_start_time": lap['LapStartTime'].total_seconds() if pd.notna(lap.get('LapStartTime')) else None
                     }
                     valid_laps_data.append(lap_dict)
 

@@ -486,6 +486,32 @@
                     "location": "Baku",
                     "circuit": "FORMULA 1 QATAR AIRWAYS AZERBAIJAN GRAND PRIX 2026",
                     "date": "2026-09-26"
+                },
+                {
+                    "round": 16,
+                    "name": "Bahrain Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "fp2",
+                            "label": "Practice 2"
+                        },
+                        {
+                            "code": "fp3",
+                            "label": "Practice 3"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        }
+                    ],
+                    "country": "Bahrain",
+                    "location": "Kuala Lumpur",
+                    "circuit": "FORMULA 1 GULF AIR BAHRAIN GRAND PRIX IN MALAYSIA 2026",
+                    "date": "2026-10-04"
                 }
             ]
         },

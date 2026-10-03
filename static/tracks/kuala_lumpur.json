@@ -1,0 +1,129 @@
+{
+    "name": "Sepang",
+    "country": "Malaysia",
+    "rotation": 0.0,
+    "corners": [
+        {
+            "number": 1,
+            "letter": "",
+            "angle": 69.4,
+            "distance": 651.2,
+            "x": -5113.0,
+            "y": -991.0
+        },
+        {
+            "number": 2,
+            "letter": "",
+            "angle": 52.0,
+            "distance": 747.1,
+            "x": -4193.0,
+            "y": -844.0
+        },
+        {
+            "number": 3,
+            "letter": "",
+            "angle": 59.7,
+            "distance": 1038.1,
+            "x": -4333.0,
+            "y": 1865.0
+        },
+        {
+            "number": 4,
+            "letter": "",
+            "angle": -69.6,
+            "distance": 1551.5,
+            "x": 471.1,
+            "y": 3660.1
+        },
+        {
+            "number": 5,
+            "letter": "",
+            "angle": 15.9,
+            "distance": 1962.6,
+            "x": 2312.4,
+            "y": 688.6
+        },
+        {
+            "number": 6,
+            "letter": "",
+            "angle": 2.5,
+            "distance": 2122.5,
+            "x": 3689.0,
+            "y": 1447.5
+        },
+        {
+            "number": 7,
+            "letter": "",
+            "angle": -116.6,
+            "distance": 2548.6,
+            "x": 6376.7,
+            "y": -1539.5
+        },
+        {
+            "number": 8,
+            "letter": "",
+            "angle": -120.2,
+            "distance": 2578.5,
+            "x": 6238.0,
+            "y": -1814.0
+        },
+        {
+            "number": 9,
+            "letter": "",
+            "angle": -92.7,
+            "distance": 3108.5,
+            "x": 1222.2,
+            "y": -2773.9
+        },
+        {
+            "number": 10,
+            "letter": "",
+            "angle": -58.3,
+            "distance": 3226.1,
+            "x": 2161.9,
+            "y": -3592.1
+        },
+        {
+            "number": 11,
+            "letter": "",
+            "angle": 166.4,
+            "distance": 3470.6,
+            "x": 1308.7,
+            "y": -5502.5
+        },
+        {
+            "number": 12,
+            "letter": "",
+            "angle": -171.5,
+            "distance": 3948.1,
+            "x": -2606.0,
+            "y": -4182.0
+        },
+        {
+            "number": 13,
+            "letter": "",
+            "angle": 103.1,
+            "distance": 4118.3,
+            "x": -4033.6,
+            "y": -3495.1
+        },
+        {
+            "number": 14,
+            "letter": "",
+            "angle": 55.0,
+            "distance": 4157.0,
+            "x": -3980.6,
+            "y": -3128.1
+        },
+        {
+            "number": 15,
+            "letter": "",
+            "angle": 111.8,
+            "distance": 5095.7,
+            "x": 4761.0,
+            "y": -914.0
+        }
+    ],
+    "marshal_sectors": [],
+    "marshal_lights": []
+}

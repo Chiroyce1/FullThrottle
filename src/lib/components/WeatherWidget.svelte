@@ -34,9 +34,15 @@
 
 	<!-- Conditions flag -->
 	{#if weather.rainfall}
-		<span class="text-blue-400 font-bold uppercase tracking-wider">🌧 Wet</span>
+		<span class="inline-flex items-center gap-1 text-blue-400 font-bold uppercase tracking-wider">
+			<span class="h-1.5 w-1.5 rounded-full bg-blue-400"></span>
+			Wet
+		</span>
 	{:else}
-		<span class="text-amber-400 font-bold uppercase tracking-wider">☀ Dry</span>
+		<span class="inline-flex items-center gap-1 text-amber-400 font-bold uppercase tracking-wider">
+			<span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+			Dry
+		</span>
 	{/if}
 
 	<span title="Air temperature">

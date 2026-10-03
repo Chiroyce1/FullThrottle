@@ -597,10 +597,30 @@ export class TelemetryEngine {
 		const trace = this.getLapTelemetry(id, lap);
 		if (trace.length === 0) return [];
 
+		// Calculate start offset from lap_start_time if available to align with the start/finish line
+		const driverMeta = this.metadata?.drivers?.[id];
+		const lapMeta = driverMeta?.valid_laps?.find((l) => l.lap_number === lap);
+		const lapStartTime = lapMeta?.lap_start_time;
+
+		let startOffset = 0;
+		if (
+			lapStartTime != null &&
+			trace[0]?.session_time != null &&
+			trace[0]?.speed != null
+		) {
+			const dt = trace[0].session_time - lapStartTime;
+			if (Number.isFinite(dt) && dt > 0 && dt < 3.5) {
+				const computed = dt * (trace[0].speed / 3.6);
+				if (Number.isFinite(computed) && computed >= 0 && computed < 350) {
+					startOffset = computed;
+				}
+			}
+		}
+
 		const startDistance = trace[0]?.distance ?? 0;
 		const normalized = trace.map((row) => ({
 			...row,
-			distance: (row.distance ?? 0) - startDistance,
+			distance: Math.max(0, (row.distance ?? 0) - startDistance + startOffset),
 		}));
 
 		if (!this.normalizedLapTelemetryCache[id])

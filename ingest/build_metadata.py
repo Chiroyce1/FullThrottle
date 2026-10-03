@@ -182,5 +182,40 @@ def main():
     total_rounds = sum(len(yl['rounds']) for yl in years_list)
     print(f"Generated {output_path}: {len(years_list)} years, {total_rounds} rounds, {total_sessions} sessions")
 
+    # Lint track files to ensure every round has a static/tracks definition
+    tracks_dir = os.path.join(base_dir, 'tracks')
+    lint_tracks(years_list, tracks_dir)
+
+def lint_tracks(years_list, tracks_dir):
+    """Verify that every round has a corresponding static/tracks/{track}.json."""
+    if not os.path.exists(tracks_dir):
+        return
+
+    try:
+        from extract_tracks import sanitize_filename
+    except ImportError:
+        def sanitize_filename(name):
+            return name.strip().lower().replace(' ', '_')
+
+    missing_tracks = set()
+    for yr in years_list:
+        for r in yr.get('rounds', []):
+            loc = r.get('location') or r.get('name')
+            if not loc:
+                continue
+            filename = sanitize_filename(loc)
+            target = os.path.join(tracks_dir, f"{filename}.json")
+            if not os.path.exists(target):
+                missing_tracks.add((r.get('name', 'Unknown'), loc, f"{filename}.json"))
+
+    if missing_tracks:
+        print("\n" + "=" * 60)
+        print("[TRACK LINTER WARNING] Missing track definitions in static/tracks/:")
+        for name, loc, fname in sorted(missing_tracks):
+            print(f"   - {name} (location: '{loc}' -> needs '{fname}')")
+        print("=" * 60 + "\n")
+    else:
+        print("[TRACK LINTER] Track check passed: all rounds have matching track files in static/tracks/")
+
 if __name__ == '__main__':
     main()

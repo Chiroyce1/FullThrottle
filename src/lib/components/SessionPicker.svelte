@@ -113,7 +113,7 @@
 			.map((r: RoundEntry) => ({
 				value: r.round.toString(),
 				label: r.name,
-				keywords: `${r.location || ""} ${r.country || ""}`,
+				keywords: `${r.name || ""} ${r.location || ""} ${r.country || ""} ${r.circuit || ""}`,
 				rightLabel: (r.location || r.country || "").toUpperCase(),
 			})),
 	);

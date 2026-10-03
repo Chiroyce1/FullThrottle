@@ -192,7 +192,7 @@
 			.map((r) => ({
 				value: r.round.toString(),
 				label: r.name,
-				keywords: `${r.location || ""} ${r.country || ""}`,
+				keywords: `${r.name || ""} ${r.location || ""} ${r.country || ""} ${r.circuit || ""} Round ${r.round} R${r.round}`,
 				rightLabel: (r.location || r.country || "").toUpperCase(),
 			}))}
 		placeholder={roundData?.name || "Round"}

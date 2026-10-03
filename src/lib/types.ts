@@ -62,6 +62,7 @@ export interface ValidLap {
   compound: CompoundType;
   tyre_life: number;
   is_personal_best: boolean;
+  lap_start_time?: number | null;
 }
 
 // ─── Driver Metadata (from JSON sidecar) ─────────────────────────────────

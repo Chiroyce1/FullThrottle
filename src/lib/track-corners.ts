@@ -35,6 +35,7 @@ const LOCATION_OVERRIDES: Record<string, string> = {
 	"miami gardens": "miami",
 	bahrain: "sakhir",
 	"monte carlo": "monaco",
+	"kuala lumpur": "sepang",
 };
 
 function locationToFilename(location: string): string {
