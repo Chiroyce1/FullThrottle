@@ -17,6 +17,21 @@
     label: string;
   }
 
+  export interface CornerApexDriver {
+    tla: string;
+    color: string;
+    speed: number;
+    distance: number;
+    isFastest: boolean;
+  }
+
+  export interface CornerApexMarker {
+    corner: number;
+    letter: string;
+    label: string;
+    drivers: CornerApexDriver[];
+  }
+
   const {
     series = [],
     yAccessor,
@@ -34,6 +49,8 @@
     yTicks,
     lockYAxis = false,
     corners = [],
+    apexMarkers = [],
+    activeCorner = null,
     isLast = false,
   } = $props<{
     series: ChartSeries[];
@@ -52,6 +69,8 @@
     yTicks?: number[];
     lockYAxis?: boolean;
     corners?: TrackCorner[];
+    apexMarkers?: CornerApexMarker[];
+    activeCorner?: number | null;
     isLast?: boolean;
   }>();
 
@@ -322,6 +341,22 @@
         (c: TrackCorner & { px: number }) => c.px >= 0 && c.px <= innerWidth,
       ),
   );
+
+  const visibleApexes = $derived.by(() => {
+    if (!apexMarkers || apexMarkers.length === 0) return [];
+    return apexMarkers
+      .map((m: CornerApexMarker) => ({
+        ...m,
+        drivers: m.drivers
+          .map((d: CornerApexDriver) => ({
+            ...d,
+            px: xScale(d.distance),
+            py: yScale(d.speed),
+          }))
+          .filter((d: CornerApexDriver & { px: number; py: number }) => d.px >= 0 && d.px <= innerWidth),
+      }))
+      .filter((m: { drivers: (CornerApexDriver & { px: number; py: number })[] }) => m.drivers.length > 0);
+  });
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -482,6 +517,66 @@
             >{c.letter ? `${c.number}${c.letter}` : c.number}</text
           >
         {/each}
+
+        <!-- Apex Minimum Speed Markers -->
+        {#if visibleApexes.length > 0}
+          <g class="apex-markers-layer" clip-path={`url(#${clipId})`}>
+            {#each visibleApexes as apex}
+              {@const isCornerActive = activeCorner === apex.corner}
+              {#each apex.drivers as d, dIndex}
+                <g class="transition-all duration-200">
+                  {#if d.isFastest}
+                    <!-- Faster driver halo glow -->
+                    <circle
+                      cx={d.px}
+                      cy={d.py}
+                      r={isCornerActive ? "8" : "5.5"}
+                      fill={d.color}
+                      fill-opacity="0.25"
+                      stroke={d.color}
+                      stroke-width={isCornerActive ? "1.5" : "1"}
+                    />
+                    <!-- Faster driver solid core -->
+                    <circle
+                      cx={d.px}
+                      cy={d.py}
+                      r={isCornerActive ? "4" : "3"}
+                      fill={d.color}
+                      stroke="var(--surface)"
+                      stroke-width="1.5"
+                    />
+                    <!-- Speed callout text (only first fastest if tie to avoid collision) -->
+                    {#if dIndex === 0 || !apex.drivers.slice(0, dIndex).some((prev: typeof d) => prev.isFastest && Math.abs(prev.px - d.px) < 18)}
+                      <text
+                        x={d.px}
+                        y={d.py > innerHeight - 16 ? d.py - 9 : d.py + 13}
+                        font-size={isCornerActive ? "9.5" : "8"}
+                        font-weight="bold"
+                        font-family="monospace"
+                        text-anchor="middle"
+                        fill={d.color}
+                        class="select-none font-mono drop-shadow-xs pointer-events-none"
+                      >
+                        {Math.round(d.speed)}
+                      </text>
+                    {/if}
+                  {:else}
+                    <!-- Slower driver apex dot without text collision -->
+                    <circle
+                      cx={d.px}
+                      cy={d.py}
+                      r={isCornerActive ? "3.5" : "2.5"}
+                      fill={d.color}
+                      stroke="var(--surface)"
+                      stroke-width="1"
+                      opacity={isCornerActive ? "1" : "0.75"}
+                    />
+                  {/if}
+                </g>
+              {/each}
+            {/each}
+          </g>
+        {/if}
 
         <!-- Playhead -->
         {#if playheadX !== null && playheadX >= 0 && playheadX <= innerWidth}

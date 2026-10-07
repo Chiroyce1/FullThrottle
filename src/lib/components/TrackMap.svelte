@@ -46,6 +46,9 @@
 		showRotationGUI = true,
 		showLabels = true,
 		corners = [],
+		activeCorner = null,
+		onSelectCorner,
+		onHoverCorner,
 	} = $props<{
 		trackPath: { x: number; y: number }[];
 		activeDots: DriverDot[];
@@ -55,6 +58,9 @@
 		rotation?: number;
 		showLabels?: boolean;
 		corners?: TrackCorner[];
+		activeCorner?: number | null;
+		onSelectCorner?: (corner: TrackCorner) => void;
+		onHoverCorner?: (corner: TrackCorner | null) => void;
 	}>();
 
 	function dotLabel(dot: DriverDot): string {
@@ -419,13 +425,26 @@
 			.data(corners, (d: TrackCorner) => d.number)
 			.join(
 				(enter) => {
-					const g = enter.append("g").attr("class", "corner-marker");
+					const g = enter
+						.append("g")
+						.attr("class", "corner-marker")
+						.style("cursor", "pointer")
+						.on("click", (e, d: TrackCorner) => {
+							e.stopPropagation();
+							onSelectCorner?.(d);
+						})
+						.on("mouseenter", (_e, d: TrackCorner) => {
+							onHoverCorner?.(d);
+						})
+						.on("mouseleave", () => {
+							onHoverCorner?.(null);
+						});
 
 					g.append("rect")
 						.attr("class", "corner-label-bg")
-						.attr("fill", "rgba(8,12,16,0.75)")
-						.attr("stroke", "rgba(230,235,245,0.4)")
-						.attr("stroke-width", 0.6)
+						.attr("fill", "var(--surface-raised)")
+						.attr("stroke", "var(--divider)")
+						.attr("stroke-width", 0.75)
 						.attr("rx", CORNER_LABEL_RADIUS_PX)
 						.attr("ry", CORNER_LABEL_RADIUS_PX);
 
@@ -433,7 +452,7 @@
 						.attr("class", "corner-label-text")
 						.attr("text-anchor", "middle")
 						.attr("dominant-baseline", "central")
-						.attr("fill", "#e8eef5")
+						.attr("fill", "var(--on-surface)")
 						.attr("font-size", CORNER_FONT_SIZE)
 						.attr("font-family", "monospace")
 						.attr("font-weight", "bold")
@@ -461,6 +480,19 @@
 				},
 				(update) => {
 					update
+						.style("cursor", "pointer")
+						.on("click", (e, d: TrackCorner) => {
+							e.stopPropagation();
+							onSelectCorner?.(d);
+						})
+						.on("mouseenter", (_e, d: TrackCorner) => {
+							onHoverCorner?.(d);
+						})
+						.on("mouseleave", () => {
+							onHoverCorner?.(null);
+						});
+
+					update
 						.select<SVGTextElement>("text.corner-label-text")
 						.text((d: TrackCorner) =>
 							d.letter ? `${d.number}${d.letter}` : `${d.number}`,
@@ -486,6 +518,33 @@
 				},
 				(exit) => exit.remove(),
 			);
+	});
+
+	// EFFECT 4b: Highlight active corner marker
+	$effect(() => {
+		if (!cornersGroup) return;
+		const curActive = activeCorner;
+		const r = rotation;
+		const scaleFactor = 1 / currentZoom;
+
+		cornersGroup
+			.selectAll<SVGGElement, TrackCorner>("g.corner-marker")
+			.each(function (d) {
+				const group = d3.select(this);
+				const isActive = d.number === curActive;
+				group
+					.select<SVGRectElement>("rect.corner-label-bg")
+					.attr("fill", isActive ? "var(--surface-overlay)" : "var(--surface-raised)")
+					.attr("stroke", isActive ? "var(--color-primary, #e10600)" : "var(--divider)")
+					.attr("stroke-width", isActive ? 1.5 : 0.75);
+				group
+					.select<SVGTextElement>("text.corner-label-text")
+					.attr("fill", isActive ? "var(--foreground)" : "var(--on-surface)");
+
+				const pos = cornerMarkerPosition(d);
+				const s = isActive ? scaleFactor * 1.25 : scaleFactor;
+				group.attr("transform", `translate(${pos.x},${pos.y}) rotate(${-r}) scale(${s})`);
+			});
 	});
 
 	// EFFECT 5: Apply rotation when `rotation` changes

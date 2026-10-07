@@ -33,3 +33,5 @@ __pycache__/
 data_hidden/
 .fastf1_cache/
 docs/
+# Local-only planning notes (never publish)
+TODO.md

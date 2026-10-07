@@ -6,6 +6,8 @@
   import type {
     ChartHighlight,
     ChartSeries,
+    CornerApexMarker,
+    CornerApexDriver,
   } from "$lib/components/SyncedTelemetryChart.svelte";
   import { Button } from "$lib/components/ui/button";
   import ModeToggle from "$lib/components/ModeToggle.svelte";
@@ -19,6 +21,8 @@
   import LapStats from "./LapStats.svelte";
   import TelemetryCharts from "./TelemetryCharts.svelte";
   import TelemetryEmptyState from "./TelemetryEmptyState.svelte";
+  import CornerSpeedsTable from "./CornerSpeedsTable.svelte";
+  import { computeCornerSpeeds } from "$lib/telemetry/corner-speeds";
   import { loadTrackCorners, type TrackCorner } from "$lib/track-corners";
   import type { ValidLap } from "$lib/types";
 
@@ -98,6 +102,7 @@
   let trackCorners = $state<TrackCorner[]>([]);
   let lastCornerLocation = $state("");
   let showCorners = $state(true);
+  let showCornerSpeeds = $state(true);
   let showMap = $state(true);
 
   $effect(() => {
@@ -224,7 +229,7 @@
   // ── Add Driver button ────────────────────────────────────────────────
 
   const addDriverLabel = $derived(
-    tm.addDriverFeedback === "added" ? "✓ Added" : "Add Driver",
+    tm.addDriverFeedback === "added" ? "Added" : "Add Driver",
   );
 
   const addDriverClass = $derived.by(() => {
@@ -242,6 +247,118 @@
     }
     return `${base} border-primary bg-primary text-primary-foreground hover:bg-transparent hover:text-primary`;
   });
+
+  // ── Corner speeds computation per slot ─────────────────────────────
+  const slotCornerSpeeds = $derived(
+    tm.slots.map((_, sid) => {
+      const data = tm.lapData(sid);
+      if (data.length === 0 || trackCorners.length === 0) {
+        return {
+          tla: tm.driverTla(sid),
+          color: tm.color(sid),
+          speeds: [],
+        };
+      }
+      return {
+        tla: tm.driverTla(sid),
+        color: tm.color(sid),
+        speeds: computeCornerSpeeds(trackCorners, data),
+      };
+    }),
+  );
+
+  // ── Apex markers: minimum speed points across drivers for chart display ─
+  const apexMarkers = $derived.by<CornerApexMarker[]>(() => {
+    if (trackCorners.length === 0 || slotCornerSpeeds.length === 0) return [];
+    return trackCorners
+      .map((c) => {
+        const drivers: CornerApexDriver[] = [];
+        for (const slot of slotCornerSpeeds) {
+          const sp = slot.speeds.find(
+            (s) => s.corner === c.number && s.letter === (c.letter || ""),
+          );
+          if (sp && sp.minSpeed !== null && sp.minSpeedDist !== null) {
+            drivers.push({
+              tla: slot.tla,
+              color: slot.color,
+              speed: sp.minSpeed,
+              distance: sp.minSpeedDist,
+              isFastest: false,
+            });
+          }
+        }
+        if (drivers.length > 0) {
+          const maxSpeed = Math.max(...drivers.map((d) => d.speed));
+          for (const d of drivers) {
+            if (Math.round(d.speed) === Math.round(maxSpeed)) {
+              d.isFastest = true;
+            }
+          }
+        }
+        return {
+          corner: c.number,
+          letter: c.letter || "",
+          label: c.letter ? `${c.number}${c.letter}` : `${c.number}`,
+          drivers,
+        };
+      })
+      .filter((ca) => ca.drivers.length > 0);
+  });
+
+  // ── Active corner: derived from hover distance on telemetry charts ─
+  // When the user scrubs along the charts, find which corner zone they're in
+  const CORNER_PROXIMITY = 120; // meters — how close hoverDist must be to a corner
+  const activeCorner = $derived.by<number | null>(() => {
+    if (hoverDist === null || trackCorners.length === 0) return null;
+    let closest: TrackCorner | null = null;
+    let closestDist = Infinity;
+    for (const c of trackCorners) {
+      const d = Math.abs(c.distance - hoverDist);
+      if (d < closestDist) {
+        closestDist = d;
+        closest = c;
+      }
+    }
+    return closest && closestDist <= CORNER_PROXIMITY ? closest.number : null;
+  });
+
+  const activeCornerData = $derived.by(() => {
+    if (activeCorner == null) return null;
+    const corner = trackCorners.find((c) => c.number === activeCorner);
+    if (!corner) return null;
+    const speeds = slotCornerSpeeds
+      .map((s) => {
+        const cs = s.speeds.find((sp) => sp.corner === corner.number);
+        return {
+          tla: s.tla,
+          color: s.color,
+          minSpeed: cs?.minSpeed ?? null,
+        };
+      })
+      .filter((s): s is { tla: string; color: string; minSpeed: number } => s.minSpeed !== null);
+    if (speeds.length === 0) return null;
+    const maxSpeed = Math.max(...speeds.map((s) => s.minSpeed));
+    return {
+      corner,
+      speeds: speeds.map((s) => ({
+        ...s,
+        isFastest: Math.round(s.minSpeed) === Math.round(maxSpeed),
+        deltaVsFastest: Math.round(s.minSpeed - maxSpeed),
+      })),
+    };
+  });
+
+  function handleSelectCorner(corner: TrackCorner) {
+    const pad = 200;
+    const start = Math.max(0, corner.distance - pad);
+    const end = corner.distance + pad;
+    xDomain = [start, end];
+    hoverDist = corner.distance;
+  }
+
+  function handleHoverCorner(corner: TrackCorner | null) {
+    hoverDist = corner ? corner.distance : null;
+  }
 </script>
 
 <SEO route="telemetry" />
@@ -422,6 +539,15 @@
             >
               Corners
             </button>
+            <button
+              onclick={() => (showCornerSpeeds = !showCornerSpeeds)}
+              class="h-7 px-2 rounded-sm border font-mono text-[10px] font-semibold tracking-wider uppercase transition-colors {showCornerSpeeds
+                ? 'border-border bg-surface-raised text-foreground'
+                : 'border-border/40 bg-transparent text-muted-foreground hover:text-foreground'}"
+            >
+              Speeds
+            </button>
+
           </div>
           <button
             onclick={() => {
@@ -446,7 +572,11 @@
             hoverDist = x;
           }}
           corners={showCorners ? trackCorners : []}
+          apexMarkers={(showCorners || showCornerSpeeds) ? apexMarkers : []}
+          {activeCorner}
         />
+
+
       </div>
 
       <!-- Drag handle -->
@@ -463,16 +593,20 @@
         ></div>
       </div>
 
-      <!-- ── Right sidebar ─────────────────────────────────────────── -->
+      <!-- ── Right sidebar: Spatial & Corner Intelligence ─────────── -->
       <div
-        class="w-full shrink-0 flex flex-col gap-3 min-h-0 overflow-y-auto custom-scrollbar"
+        class="w-full shrink-0 flex flex-col min-h-0 overflow-hidden bg-surface border border-divider"
         style={innerWidth >= 768
           ? `width:${sidebarWidth}px; max-width:50%;`
           : ""}
       >
         <!-- Track map -->
-        <div class="flex flex-col bg-surface overflow-hidden">
-          <div class="relative w-full aspect-square">
+        <div
+          class="flex flex-col bg-surface overflow-hidden relative shrink-0 transition-all {showCornerSpeeds && trackCorners.length > 0 && slotCornerSpeeds.some(s => s.speeds.length > 0)
+            ? 'h-[40vh] max-h-[380px] min-h-[220px]'
+            : 'flex-1 h-full'}"
+        >
+          <div class="relative w-full h-full">
             <TrackMap
               trackPath={tm.trackPath}
               {activeDots}
@@ -484,9 +618,51 @@
               showRotationGUI={false}
               showLabels={false}
               corners={showCorners ? trackCorners : []}
+              {activeCorner}
+              onSelectCorner={handleSelectCorner}
+              onHoverCorner={handleHoverCorner}
             />
+
+            <!-- Floating Corner Speed HUD pill -->
+            {#if activeCornerData}
+              <div
+                class="pointer-events-none absolute top-2.5 left-2.5 z-10 flex items-center gap-2 rounded-md border border-divider/80 bg-surface/90 px-2.5 py-1.5 shadow-lg backdrop-blur-md"
+              >
+                <span class="font-mono text-xs font-black text-foreground">
+                  T{activeCornerData.corner.letter ? `${activeCornerData.corner.number}${activeCornerData.corner.letter}` : activeCornerData.corner.number}
+                </span>
+                <div class="h-3 w-px bg-divider"></div>
+                <div class="flex items-center gap-2.5">
+                  {#each activeCornerData.speeds as sp}
+                    <div class="flex items-center gap-1 font-mono text-[10px]">
+                      <span class="h-1.5 w-1.5 rounded-full" style="background-color: {sp.color}"></span>
+                      <span class="font-bold" style="color: {sp.color}">{sp.tla}</span>
+                      <span class="tabular-nums {sp.isFastest ? 'font-bold text-foreground' : 'text-on-surface-muted'}">{Math.round(sp.minSpeed)}</span>
+                      {#if !sp.isFastest && sp.deltaVsFastest < 0}
+                        <span class="font-mono text-[9px] text-on-surface-subtle tabular-nums">
+                          ({sp.deltaVsFastest})
+                        </span>
+                      {/if}
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/if}
           </div>
         </div>
+
+        <!-- Corner speeds table (below map) -->
+        {#if showCornerSpeeds && trackCorners.length > 0 && slotCornerSpeeds.some(s => s.speeds.length > 0)}
+          <div class="flex-1 min-h-0 overflow-hidden border-t border-divider flex flex-col bg-surface">
+            <CornerSpeedsTable
+              corners={trackCorners}
+              slots={slotCornerSpeeds}
+              {activeCorner}
+              onSelectCorner={handleSelectCorner}
+              onHoverCorner={handleHoverCorner}
+            />
+          </div>
+        {/if}
       </div>
     {:else}
       <TelemetryEmptyState
@@ -586,6 +762,14 @@
               >
                 Corners
               </button>
+              <button
+                onclick={() => (showCornerSpeeds = !showCornerSpeeds)}
+                class="h-7 px-2 rounded-sm border font-mono text-[10px] font-semibold tracking-wider uppercase transition-colors {showCornerSpeeds
+                  ? 'border-border bg-surface-raised text-foreground'
+                  : 'border-border/40 bg-transparent text-muted-foreground'}"
+              >
+                Speeds
+              </button>
             </div>
             <button
               onclick={() => {
@@ -606,7 +790,7 @@
             <!-- Track map: centered on page, half height -->
             {#if showMap}
               <div
-                class="h-[50vh] min-h-[300px] w-full shrink-0 border-b border-divider/50 bg-surface flex items-center justify-center"
+                class="h-[50vh] min-h-[300px] w-full shrink-0 border-b border-divider/50 bg-surface flex items-center justify-center relative"
               >
                 <TrackMap
                   trackPath={tm.trackPath}
@@ -619,7 +803,31 @@
                   showRotationGUI={false}
                   showLabels={false}
                   corners={showCorners ? trackCorners : []}
+                  {activeCorner}
+                  onSelectCorner={handleSelectCorner}
+                  onHoverCorner={handleHoverCorner}
                 />
+
+                <!-- Floating Corner Speed HUD pill (Mobile) -->
+                {#if activeCornerData}
+                  <div
+                    class="pointer-events-none absolute top-2.5 left-2.5 z-10 flex items-center gap-2 rounded-md border border-divider/80 bg-surface/90 px-2 py-1 shadow-lg backdrop-blur-md"
+                  >
+                    <span class="font-mono text-xs font-black text-foreground">
+                      T{activeCornerData.corner.letter ? `${activeCornerData.corner.number}${activeCornerData.corner.letter}` : activeCornerData.corner.number}
+                    </span>
+                    <div class="h-3 w-px bg-divider"></div>
+                    <div class="flex items-center gap-2">
+                      {#each activeCornerData.speeds as sp}
+                        <div class="flex items-center gap-1 font-mono text-[9px]">
+                          <span class="h-1.5 w-1.5 rounded-full" style="background-color: {sp.color}"></span>
+                          <span class="font-bold" style="color: {sp.color}">{sp.tla}</span>
+                          <span class="font-semibold text-foreground">{Math.round(sp.minSpeed)}</span>
+                        </div>
+                      {/each}
+                    </div>
+                  </div>
+                {/if}
               </div>
             {/if}
 
@@ -635,7 +843,19 @@
                 hoverDist = x;
               }}
               corners={showCorners ? trackCorners : []}
+              apexMarkers={(showCorners || showCornerSpeeds) ? apexMarkers : []}
+              {activeCorner}
             />
+
+            {#if showCornerSpeeds && trackCorners.length > 0}
+              <CornerSpeedsTable
+                corners={trackCorners}
+                slots={slotCornerSpeeds}
+                {activeCorner}
+                onSelectCorner={handleSelectCorner}
+                onHoverCorner={handleHoverCorner}
+              />
+            {/if}
           </div>
         </div>
       {:else}

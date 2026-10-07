@@ -2,6 +2,7 @@
   import SyncedTelemetryChart, {
     type ChartHighlight,
     type ChartSeries,
+    type CornerApexMarker,
   } from "$lib/components/SyncedTelemetryChart.svelte";
   import type { TrackCorner } from "$lib/track-corners";
 
@@ -13,6 +14,8 @@
     onZoom: (domain: [number, number] | null) => void;
     onHover: (x: number | null) => void;
     corners?: TrackCorner[];
+    apexMarkers?: CornerApexMarker[];
+    activeCorner?: number | null;
   }
 
   import { CHART_HEIGHT, CHART_HEIGHT_SPEED } from "$lib/constants";
@@ -25,6 +28,8 @@
     onZoom,
     onHover,
     corners = [],
+    apexMarkers = [],
+    activeCorner = null,
   }: Props = $props();
 
   let innerWidth = $state(1024);
@@ -49,6 +54,8 @@
     yTicks={[0, 100, 200, 300, 400]}
     height={speedHeight}
     {corners}
+    {apexMarkers}
+    {activeCorner}
   />
   <SyncedTelemetryChart
     {series}

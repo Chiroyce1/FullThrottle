@@ -50,9 +50,9 @@
 			desc: "Compare laps on the same track across multiple drivers and sessions",
 		},
 		{
-			tag: "Soon",
+			tag: "LIVE",
 			title: "Corner analysis",
-			desc: "Minimum speeds, lift and coast, and more stats per driver per lap. Still to come.",
+			desc: "Minimum speeds, entry & exit telemetry, and head-to-head deltas per driver per lap.",
 		},
 	] as const;
 
