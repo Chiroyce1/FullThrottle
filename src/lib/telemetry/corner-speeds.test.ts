@@ -60,8 +60,8 @@ describe("computeCornerSpeeds", () => {
 		expect(result[0].corner).toBe(1);
 		expect(result[0].minSpeed).toBe(110);
 		expect(result[0].minSpeedDist).toBe(505);
-		expect(result[0].entrySpeed).toBe(300); // at 400m (500 - 100 approach)
-		expect(result[0].exitSpeed).toBe(160); // at 530m (500 + 50 exit)
+		expect(result[0].entrySpeed).toBe(220); // nearest sample to 505 - 60
+		expect(result[0].exitSpeed).toBe(230); // nearest sample to 505 + 60
 	});
 
 	it("should not allow adjacent corners to contaminate each other's search windows", () => {
@@ -114,7 +114,7 @@ describe("computeCornerSpeeds", () => {
 		expect(result[1].minSpeedDist).toBeNull();
 	});
 
-	it("should use exact corner apex speed for flat-out acceleration kinks without false troughs", () => {
+	it("should score flat-out kinks as null instead of a fake apex speed", () => {
 		// e.g. T17 kink at 4235m following T16 exit (speed accelerating monotonically from 174 to 260)
 		const corners: TrackCorner[] = [
 			{ number: 17, letter: "", angle: -36, distance: 4235, x: 0, y: 0 },
@@ -130,9 +130,111 @@ describe("computeCornerSpeeds", () => {
 		const result = computeCornerSpeeds(corners, lapData);
 		expect(result).toHaveLength(1);
 		expect(result[0].corner).toBe(17);
-		// Must report 239 (at T17), NOT 174 from 100m earlier!
-		expect(result[0].minSpeed).toBe(239);
-		expect(result[0].minSpeedDist).toBe(4235);
+		// No deceleration trough exists, so this must be null — reporting
+		// 239 (or 174 from 100m earlier) as "apex speed" is fake precision.
+		expect(result[0].minSpeed).toBeNull();
+		expect(result[0].minSpeedDist).toBeNull();
+		expect(result[0].entrySpeed).toBeNull();
+		expect(result[0].exitSpeed).toBeNull();
+	});
+
+	it("should snap to the true apex when the marker sits ~90m off (slice misalignment)", () => {
+		// Sepang quali case: lap slices start at different physical points
+		// per driver, so the marker can sit almost 100m past the real apex.
+		const corners: TrackCorner[] = [
+			{ number: 4, letter: "", angle: 90, distance: 1552, x: 0, y: 0 },
+		];
+
+		const lapData: TelemetryRow[] = [
+			{ distance: 1380, speed: 290 } as TelemetryRow,
+			{ distance: 1410, speed: 200 } as TelemetryRow,
+			{ distance: 1440, speed: 130 } as TelemetryRow,
+			{ distance: 1460, speed: 106 } as TelemetryRow, // true apex, 92m before marker
+			{ distance: 1490, speed: 150 } as TelemetryRow,
+			{ distance: 1530, speed: 210 } as TelemetryRow,
+			{ distance: 1570, speed: 250 } as TelemetryRow,
+			{ distance: 1620, speed: 275 } as TelemetryRow,
+		];
+
+		const result = computeCornerSpeeds(corners, lapData);
+		expect(result).toHaveLength(1);
+		expect(result[0].minSpeed).toBe(106);
+		expect(result[0].minSpeedDist).toBe(1460);
+	});
+
+	it("should score a constant-speed straight window as null (the T3 Sepang case)", () => {
+		// Marker window contains only straight-line running at ~260 km/h
+		// with no deceleration dip — must not report 260 as corner speed.
+		const corners: TrackCorner[] = [
+			{ number: 3, letter: "", angle: 30, distance: 1038, x: 0, y: 0 },
+		];
+
+		const lapData: TelemetryRow[] = [
+			{ distance: 900, speed: 305 } as TelemetryRow,
+			{ distance: 950, speed: 302 } as TelemetryRow,
+			{ distance: 1000, speed: 300 } as TelemetryRow,
+			{ distance: 1038, speed: 299 } as TelemetryRow,
+			{ distance: 1080, speed: 301 } as TelemetryRow,
+			{ distance: 1130, speed: 303 } as TelemetryRow,
+			{ distance: 1180, speed: 305 } as TelemetryRow,
+		];
+
+		const result = computeCornerSpeeds(corners, lapData);
+		expect(result).toHaveLength(1);
+		// 6 km/h dip fails the relative (2.5%) threshold, so this scores null.
+		expect(result[0].minSpeed).toBeNull();
+	});
+
+	it("should still score fast sweepers with shallow but genuine troughs", () => {
+		const corners: TrackCorner[] = [
+			{ number: 3, letter: "", angle: 30, distance: 1100, x: 0, y: 0 },
+		];
+
+		const lapData: TelemetryRow[] = [
+			{ distance: 950, speed: 310 } as TelemetryRow,
+			{ distance: 1000, speed: 295 } as TelemetryRow,
+			{ distance: 1050, speed: 278 } as TelemetryRow,
+			{ distance: 1100, speed: 272 } as TelemetryRow, // sweeper apex
+			{ distance: 1150, speed: 280 } as TelemetryRow,
+			{ distance: 1200, speed: 295 } as TelemetryRow,
+			{ distance: 1250, speed: 305 } as TelemetryRow,
+		];
+
+		const result = computeCornerSpeeds(corners, lapData);
+		expect(result).toHaveLength(1);
+		// 38 km/h dip with full recovery: genuine, even though shallow.
+		expect(result[0].minSpeed).toBe(272);
+		expect(result[0].minSpeedDist).toBe(1100);
+	});
+
+	it("should pick the trough nearest the marker when a window holds two (chicane)", () => {
+		// One braking zone, two markers 118m apart sharing it.
+		const corners: TrackCorner[] = [
+			{ number: 10, letter: "", angle: 90, distance: 3226, x: 0, y: 0 },
+			{ number: 11, letter: "", angle: -90, distance: 3471, x: 0, y: 0 },
+		];
+
+		const lapData: TelemetryRow[] = [
+			{ distance: 3150, speed: 195 } as TelemetryRow,
+			{ distance: 3220, speed: 211 } as TelemetryRow,
+			{ distance: 3300, speed: 216 } as TelemetryRow,
+			{ distance: 3360, speed: 160 } as TelemetryRow,
+			{ distance: 3380, speed: 150 } as TelemetryRow, // shared apex
+			{ distance: 3407, speed: 160 } as TelemetryRow,
+			{ distance: 3450, speed: 190 } as TelemetryRow,
+			{ distance: 3520, speed: 240 } as TelemetryRow,
+		];
+
+		const result = computeCornerSpeeds(corners, lapData);
+		expect(result).toHaveLength(2);
+		// Both markers share one braking zone: each must land on a genuine
+		// trough inside it (150-160), with T11 nailed on the 150 apex.
+		expect(result[0].minSpeed).toBeGreaterThanOrEqual(148);
+		expect(result[0].minSpeed).toBeLessThanOrEqual(160);
+		expect(result[0].minSpeedDist).toBeGreaterThanOrEqual(3360);
+		expect(result[0].minSpeedDist).toBeLessThanOrEqual(3390);
+		expect(result[1].minSpeed).toBe(150);
+		expect(result[1].minSpeedDist).toBe(3380);
 	});
 
 	it("should compute realistic corner speeds from real Melbourne Qualifying telemetry", async () => {

@@ -28,6 +28,7 @@
 
   import { TelemetryState, type YearEntry } from "./state";
   import { rowAtDist, buildSpeedDeltaSegmentsN } from "./telemetry-utils";
+  import { alignLapToReference, type LapAlignment } from "$lib/telemetry/align";
   import type { SampleRate } from "$lib/TelemetryEngine.svelte";
 
   let years = $state<YearEntry[]>([]);
@@ -124,11 +125,45 @@
   const allSeries = $derived<ChartSeries[]>(
     tm.slots
       .map((_, sid) => ({
-        data: tm.lapData(sid),
+        data: alignedData(sid),
         color: tm.color(sid),
         label: tm.driverTla(sid),
       }))
       .filter((s) => s.data.length > 0),
+  );
+
+  // ── Lap alignment ────────────────────────────────────────────────────
+  // Lap slices start at slightly different physical points per driver
+  // (sampling phase, dropouts at the line, misassigned boundaries in race
+  // data). Overlaying raw slices compares different pieces of tarmac, so
+  // every non-reference lap is shift-aligned to the reference lap by
+  // maximizing speed-trace correlation. Corner speeds don't need this:
+  // trough-snapping measures each driver at their own real apex.
+  const alignedLaps = $derived.by(() => {
+    const raw = tm.slots.map((_, sid) => tm.lapData(sid));
+    const refIdx = raw.findIndex((d) => d.length >= 2);
+    return raw.map((data, sid) => {
+      if (data.length < 2 || sid === refIdx || refIdx < 0) {
+        return { rows: data, alignment: null as LapAlignment | null };
+      }
+      const { rows, alignment } = alignLapToReference(raw[refIdx], data);
+      return { rows, alignment };
+    });
+  });
+
+  function alignedData(sid: number) {
+    return alignedLaps[sid]?.rows ?? [];
+  }
+
+  // Laps whose traces barely correlate even after shifting (pit laps,
+  // broken slices) — flag instead of showing fake-precision overlays.
+  const weakAlignments = $derived(
+    alignedLaps
+      .map((a, sid) => ({ sid, alignment: a.alignment }))
+      .filter(
+        (x): x is { sid: number; alignment: LapAlignment } =>
+          x.alignment !== null && !x.alignment.confident,
+      ),
   );
 
   const allLico = $derived.by<ChartHighlight[]>(() => {
@@ -155,7 +190,7 @@
 
   const speedDeltaSegments = $derived.by(() => {
     const datasets = tm.slots
-      .map((_, sid) => ({ data: tm.lapData(sid), color: tm.color(sid) }))
+      .map((_, sid) => ({ data: alignedData(sid), color: tm.color(sid) }))
       .filter((d) => d.data.length >= 2);
 
     if (datasets.length < 2) return [];
@@ -163,7 +198,7 @@
   });
 
   const hudRows = $derived(
-    tm.slots.map((_, sid) => rowAtDist(tm.lapData(sid), hoverDist)),
+    tm.slots.map((_, sid) => rowAtDist(alignedData(sid), hoverDist)),
   );
   const slotTlas = $derived(tm.slots.map((_, sid) => tm.driverTla(sid)));
 
@@ -172,7 +207,7 @@
 
     const samples = tm.slots
       .map((_, sid) => {
-        const data = tm.lapData(sid);
+        const data = alignedData(sid);
         const row = rowAtDist(data, hoverDist);
         if (!row || !Number.isFinite(row.x) || !Number.isFinite(row.y))
           return null;
@@ -273,16 +308,19 @@
     return trackCorners
       .map((c) => {
         const drivers: CornerApexDriver[] = [];
-        for (const slot of slotCornerSpeeds) {
+        for (const [si, slot] of slotCornerSpeeds.entries()) {
           const sp = slot.speeds.find(
             (s) => s.corner === c.number && s.letter === (c.letter || ""),
           );
           if (sp && sp.minSpeed !== null && sp.minSpeedDist !== null) {
+            // Corner speeds are measured per-lap; shift the marker into the
+            // aligned chart frame so dots land on the overlaid traces.
+            const shift = alignedLaps[si]?.alignment?.offsetM ?? 0;
             drivers.push({
               tla: slot.tla,
               color: slot.color,
               speed: sp.minSpeed,
-              distance: sp.minSpeedDist,
+              distance: sp.minSpeedDist + shift,
               isFastest: false,
             });
           }
@@ -525,6 +563,16 @@
         class:opacity-60={tm.isLoading}
       >
         <LapStats slots={lapStatsSlots} {hudRows} />
+
+        {#if weakAlignments.length > 0}
+          <p
+            class="border-b border-amber-400/30 bg-amber-400/10 px-4 py-1 font-mono text-[10px] tracking-wider text-amber-400 uppercase"
+          >
+            Low alignment confidence ({weakAlignments
+              .map((w) => tm.driverTla(w.sid))
+              .join(", ")}) — traces may not line up
+          </p>
+        {/if}
 
         <!-- Chart toolbar -->
         <div
@@ -785,6 +833,15 @@
             <!-- Pinned: stats stay visible while charts scroll -->
             <div class="sticky top-0 z-20 bg-surface">
               <LapStats slots={lapStatsSlots} {hudRows} />
+              {#if weakAlignments.length > 0}
+                <p
+                  class="border-b border-amber-400/30 bg-amber-400/10 px-3 py-1 font-mono text-[10px] tracking-wider text-amber-400 uppercase"
+                >
+                  Low alignment confidence ({weakAlignments
+                    .map((w) => tm.driverTla(w.sid))
+                    .join(", ")}) — traces may not line up
+                </p>
+              {/if}
             </div>
 
             <!-- Track map: centered on page, half height -->
