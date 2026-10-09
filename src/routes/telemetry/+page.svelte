@@ -26,7 +26,7 @@
   import { loadTrackCorners, type TrackCorner } from "$lib/track-corners";
   import type { ValidLap } from "$lib/types";
 
-  import { TelemetryState, type YearEntry } from "./state";
+  import { TelemetryState, parseUrlSlots, type YearEntry } from "./state";
   import { rowAtDist, buildSpeedDeltaSegmentsN } from "./telemetry-utils";
   import { alignLapToReference, type LapAlignment } from "$lib/telemetry/align";
   import type { SampleRate } from "$lib/TelemetryEngine.svelte";
@@ -69,7 +69,12 @@
       .then((r) => r.json() as Promise<{ years: YearEntry[] }>)
       .then((d) => {
         years = d.years;
-        tm.init(settings.dataFrequency as SampleRate, !isMobile);
+        const urlSpecs = parseUrlSlots(window.location.search);
+        if (urlSpecs) {
+          tm.initFromUrl(urlSpecs, settings.dataFrequency as SampleRate);
+        } else {
+          tm.init(settings.dataFrequency as SampleRate, !isMobile);
+        }
       });
 
     const onPageHide = () => tm.dispose();
@@ -267,6 +272,29 @@
     tm.addDriverFeedback === "added" ? "Added" : "Add Driver",
   );
 
+  // ── Share button ─────────────────────────────────────────────────────
+  let shareState = $state<"idle" | "copied">("idle");
+  let shareTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function copyShareUrl() {
+    const params = tm.toUrlParams();
+    if (!params) return;
+    const url = `${window.location.origin}/telemetry?${params}`;
+    navigator.clipboard.writeText(url).then(() => {
+      shareState = "copied";
+      if (shareTimer) clearTimeout(shareTimer);
+      shareTimer = setTimeout(() => (shareState = "idle"), 2000);
+    });
+  }
+
+  const shareLabel = $derived(shareState === "copied" ? "Copied!" : "Share");
+  const shareClass = $derived.by(() => {
+    const base = "h-8 border px-3 font-mono text-xs font-black tracking-widest uppercase transition-all duration-200";
+    if (shareState === "copied")
+      return `${base} border-green-500 bg-green-500/15 text-green-400`;
+    return `${base} border-divider bg-surface text-on-surface hover:border-primary hover:bg-primary/10 hover:text-primary`;
+  });
+
   const addDriverClass = $derived.by(() => {
     const base =
       "h-8 border px-3 font-mono text-xs font-black tracking-widest uppercase transition-all duration-200";
@@ -441,6 +469,20 @@
           variant="outline"
           class={addDriverClass}>{addDriverLabel}</Button
         >
+        <Button
+          onclick={copyShareUrl}
+          disabled={!tm.slots.some((s) => s.driver)}
+          variant="outline"
+          title="Copy a shareable link to this comparison"
+          class={shareClass}
+        >
+          {#if shareState === "copied"}
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><polyline points="20 6 9 17 4 12"/></svg>
+          {:else}
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          {/if}
+          {shareLabel}
+        </Button>
         <Button
           onclick={() => {
             tm.reset();
@@ -766,7 +808,14 @@
             onlapchange={(l) => tm.setLap(slot.id, l)}
           />
         {/each}
-        <div class="p-3">
+        <div class="p-3 flex flex-col gap-2">
+          <button
+            onclick={copyShareUrl}
+            disabled={!tm.slots.some((s) => s.driver)}
+            class="w-full h-9 rounded-md border font-mono text-[11px] font-black tracking-widest uppercase transition-all duration-200 disabled:opacity-30 {shareState === 'copied' ? 'border-green-500 bg-green-500/15 text-green-400' : 'border-divider bg-surface-raised text-on-surface'}"
+          >
+            {shareLabel}
+          </button>
           <p
             class="text-center font-mono text-[10px] tracking-widest text-on-surface-subtle uppercase"
           >

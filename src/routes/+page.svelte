@@ -179,9 +179,34 @@
 		</p>
 	</section>
 
+	<!-- Product screenshot -->
+	<section class="w-full -mt-2">
+		<a
+			href="/telemetry"
+			aria-label="Open telemetry dashboard"
+			class="group relative block w-full overflow-hidden rounded-xl border border-divider/40 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.12)] dark:shadow-[0_0_60px_-10px_rgba(225,6,0,0.25)] transition-shadow duration-300 hover:shadow-[0_6px_32px_-4px_rgba(0,0,0,0.18)] dark:hover:shadow-[0_0_80px_-8px_rgba(225,6,0,0.4)]"
+		>
+			<img
+				src="/dashboard_preview.png"
+				alt="FullThrottle telemetry dashboard — speed traces, corner speeds, and track map"
+				class="w-full object-cover"
+				loading="eager"
+			/>
+			<!-- Hover CTA pill -->
+			<div
+				class="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+			>
+				<span
+					class="rounded-full border border-primary/50 bg-background/80 px-5 py-2.5 font-mono text-xs font-black tracking-widest text-primary uppercase backdrop-blur-sm"
+				>
+					Open Dashboard →
+				</span>
+			</div>
+		</a>
+	</section>
+
 	<Separator class="opacity-10" />
 
-	<!-- Session Picker -->
 	<section class="w-full mb-18">
 		<SessionPicker years={data.years} />
 	</section>

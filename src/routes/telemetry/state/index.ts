@@ -1,4 +1,4 @@
-export { TelemetryState } from "./telemetry-state.svelte";
+export { TelemetryState, parseUrlSlots } from "./telemetry-state.svelte";
 export type {
 	YearEntry,
 	RoundEntry,
@@ -6,4 +6,5 @@ export type {
 	SlotState,
 	AddDriverFeedback,
 	LoadFeedback,
+	UrlSlotSpec,
 } from "./telemetry-state.svelte";

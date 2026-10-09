@@ -5,6 +5,37 @@ import type {
 	LapTimingEntry,
 	TelemetryMeta,
 } from "$lib/types";
+
+// ─── URL serialization types ──────────────────────────────────────────────────
+
+export type UrlSlotSpec = {
+	year: string;
+	round: string;
+	session: string;
+	driver: string;
+	lap: number | null;
+};
+
+/**
+ * Parse `?s=YEAR~ROUND~SESSION~DRIVER~LAP,...` from a search string.
+ * Returns null when the param is absent or unparseable.
+ */
+export function parseUrlSlots(search: string): UrlSlotSpec[] | null {
+	try {
+		const raw = new URLSearchParams(search).get("s");
+		if (!raw) return null;
+		const specs: UrlSlotSpec[] = [];
+		for (const part of raw.split(",")) {
+			const [year, round, session, driver, lapStr] = part.split("~");
+			if (!year || !round || !session || !driver) continue;
+			const lap = lapStr ? parseInt(lapStr, 10) : null;
+			specs.push({ year, round, session, driver: driver.toUpperCase(), lap: Number.isFinite(lap ?? NaN) ? lap : null });
+		}
+		return specs.length > 0 ? specs : null;
+	} catch {
+		return null;
+	}
+}
 import { formatDriverNameWithAbbr, getDriverAbbreviation } from "$lib/utils";
 import type {
 	YearEntry,
@@ -527,6 +558,88 @@ export class TelemetryState {
 			}, 3000);
 		} finally {
 			this.#isLoadingData = false;
+		}
+	}
+
+	// ── URL shareability ─────────────────────────────────────────────────
+
+	/**
+	 * Serialize current slots to a `s=...` query-string value.
+	 * Slots without a driver are omitted.
+	 */
+	toUrlParams(): string {
+		const parts = this.slots
+			.filter((s) => s.year && s.round && s.session && s.driver)
+			.map((s) => {
+				const fields = [s.year, s.round, s.session, s.driver];
+				if (s.lap != null) fields.push(s.lap.toString());
+				return fields.join("~");
+			});
+		if (parts.length === 0) return "";
+		return `s=${parts.join(",")}`;
+	}
+
+	/**
+	 * Boot state from URL slot specs instead of the latest-session defaults.
+	 * Fetches only the sessions referenced, then loads telemetry.
+	 */
+	async initFromUrl(specs: UrlSlotSpec[], dataFrequency: SampleRate) {
+		this.loadFeedback = "loading";
+
+		// Always keep at least 2 slots
+		const count = Math.max(2, specs.length);
+		this.slots.length = 0;
+		for (let i = 0; i < count; i++) {
+			const spec = specs[i];
+			this.slots.push(
+				makeSlot(
+					spec
+						? { year: spec.year, round: spec.round, session: spec.session, driver: spec.driver }
+						: {},
+				),
+			);
+		}
+
+		// Save URL laps — #triggerMetaFetch resets s.lap, so restore after
+		const urlLaps = specs.map((s) => s.lap);
+
+		// Fetch meta for each unique session (deduplicated)
+		const seen = new Map<string, Promise<void>>();
+		for (const s of this.slots) {
+			if (!s.year || !s.round || !s.session) continue;
+			const key = `${s.year}|${s.round}|${s.session}`;
+			if (!seen.has(key)) seen.set(key, this.#triggerMetaFetch(s));
+		}
+		await Promise.all(seen.values());
+
+		// Share meta to other slots on the same session
+		for (const s of this.slots) {
+			if (s.meta) continue;
+			const key = `${s.year}|${s.round}|${s.session}`;
+			const donor = this.slots.find(
+				(o) => o.meta && `${o.year}|${o.round}|${o.session}` === key,
+			);
+			if (donor?.meta) {
+				s.meta = donor.meta;
+				s.metaLoading = false;
+			}
+		}
+
+		// Restore laps from URL (or fall back to best lap from meta)
+		for (let i = 0; i < this.slots.length; i++) {
+			const s = this.slots[i];
+			const urlLap = urlLaps[i] ?? null;
+			if (urlLap != null) {
+				s.lap = urlLap;
+			} else if (s.driver && s.meta) {
+				s.lap = bestLapFromMeta(s.meta, s.driver);
+			}
+		}
+
+		if (this.canLoadData) {
+			await this.load(dataFrequency);
+		} else {
+			this.loadFeedback = "idle";
 		}
 	}
 }
