@@ -516,6 +516,32 @@
                     "location": "Kuala Lumpur",
                     "circuit": "FORMULA 1 GULF AIR BAHRAIN GRAND PRIX IN MALAYSIA 2026",
                     "date": "2026-10-04"
+                },
+                {
+                    "round": 17,
+                    "name": "Singapore Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "sq",
+                            "label": "Sprint Qualifying"
+                        },
+                        {
+                            "code": "s",
+                            "label": "Sprint"
+                        },
+                        {
+                            "code": "q",
+                            "label": "Qualifying"
+                        }
+                    ],
+                    "country": "Singapore",
+                    "location": "Marina Bay",
+                    "circuit": "FORMULA 1 SINGAPORE AIRLINES SINGAPORE GRAND PRIX 2026",
+                    "date": "2026-10-11"
                 }
             ]
         },
