@@ -1,0 +1,8 @@
+# OpenF1 & FastF1 ingestion pipeline dependencies
+pandas>=2.0.0
+pyarrow>=14.0.0
+numpy>=1.24.0
+requests>=2.31.0
+huggingface_hub>=0.20.0
+python-dotenv>=1.0.0
+fastf1>=3.4.0

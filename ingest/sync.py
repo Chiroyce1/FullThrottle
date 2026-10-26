@@ -1,17 +1,14 @@
-"""One command to bring local data fully up to date.
-
-Runs the whole pipeline in order, so a post-race update is a single call:
-    1. ingest.py      download and process new sessions (skips saved ones)
-    2. backfill.py    fill enrichment blocks older files lack (weather
-                      series, full results, quali phases, pit stops)
-    3. build_metadata.py rebuild the session index from local files
-    4. upload.py      push static/data to Hugging Face (only with --upload)
+"""
+Orchestrator for the telemetry ingest pipeline.
+Runs the steps in order:
+  1. ingest_openf1.py    - fetch and convert new sessions (defaults to OpenF1, zero credentials)
+  2. backfill.py         - enrich saved sessions (quali phases, weather, classification)
+  3. build_metadata.py   - compile static/metadata.json
+  4. upload.py           - (optional) commit to Hugging Face CDN
 
 Usage:
-    python3 sync.py 2026
-    python3 sync.py 2026 --round 14
-    python3 sync.py 2026 --skip-ingest --upload
-    python3 sync.py 2026 --dry-run
+  python ingest/sync.py 2026 --upload
+  python ingest/sync.py 2026 --round 18 --session r --upload
 """
 
 import argparse
@@ -20,7 +17,6 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
 
 
 def run_step(label, cmd):
@@ -37,6 +33,8 @@ def main():
     parser.add_argument("year", nargs="?", type=int, default=2026)
     parser.add_argument("--round", dest="rounds", action="append", type=int, default=[])
     parser.add_argument("--session", dest="sessions", action="append", default=[])
+    parser.add_argument("--fastf1", action="store_true", help="Use FastF1 instead of default OpenF1.")
+    parser.add_argument("--openf1", action="store_true", default=True, help=argparse.SUPPRESS)
     parser.add_argument("--skip-ingest", action="store_true")
     parser.add_argument("--skip-backfill", action="store_true")
     parser.add_argument("--skip-patches", action="store_true", help=argparse.SUPPRESS)
@@ -51,12 +49,30 @@ def main():
 
     # 1. New sessions.
     if not args.skip_ingest and not args.dry_run:
-        cmd = [py, "ingest.py", str(args.year)]
-        for r in args.rounds or []:
-            cmd += ["--round", str(r)]
-        for s in args.sessions or []:
-            cmd += ["--session", s]
-        run_step("ingest new sessions", cmd)
+        if args.fastf1:
+            cmd = [py, "ingest.py", str(args.year)]
+            for r in args.rounds or []:
+                cmd += ["--round", str(r)]
+            for s in args.sessions or []:
+                cmd += ["--session", s]
+            print(f"\n===== ingest new sessions (FastF1) =====")
+            print(f"$ {' '.join(cmd)}")
+            result = subprocess.run(cmd, cwd=HERE)
+            if result.returncode != 0:
+                print("\nFastF1 failed (likely F1 TV 401 gate). Automatically falling back to OpenF1 pipeline...")
+                cmd_openf1 = [py, "ingest_openf1.py", str(args.year)]
+                for r in args.rounds or []:
+                    cmd_openf1 += ["--round", str(r)]
+                for s in args.sessions or []:
+                    cmd_openf1 += ["--session", s]
+                run_step("ingest new sessions (OpenF1 fallback)", cmd_openf1)
+        else:
+            cmd = [py, "ingest_openf1.py", str(args.year)]
+            for r in args.rounds or []:
+                cmd += ["--round", str(r)]
+            for s in args.sessions or []:
+                cmd += ["--session", s]
+            run_step("ingest new sessions (OpenF1)", cmd)
     else:
         print("\n===== ingest new sessions (skipped) =====")
 

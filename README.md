@@ -13,10 +13,6 @@
 - **Head-to-Head Comparisons:** Overlay upto 4 drivers side-by-side across laps, tyre compounds, sessions, and even across different years to see where lap time was won or lost.
 - **Interactive Session Replays:** Watch full Grand Prix races, Qualifying, Free Practice and Pre-Season testing sessions with telemetry and synced positions.
 
-<video src="https://github.com/Chiroyce1/FullThrottle/raw/main/static/session_replay_demo.mp4" controls autoplay loop muted playsinline width="100%" poster="static/replay-preview.png">
-  <p>Your browser does not support the video tag. Watch the <a href="https://fullthrottle.chiroyce.dev/replay/2026/1/r">live interactive session replay demo here</a>.</p>
-</video>
-
 ---
 
 ## How it works under the hood
@@ -26,14 +22,14 @@ FullThrottle is built **edge-first and client-driven**. Instead of relying on a 
 - **Frontend:** Built with [SvelteKit](https://kit.svelte.dev/) (Svelte 5) for a fast and reactive interface.
 - **Visualizations:** [D3.js](https://d3js.org/) for all the telemetry visualizations
 - **Data Pipeline:**
-  - Raw telemetry is sourced using [FastF1](https://github.com/theOehrly/Fast-F1) in Python, then pre-processed into compressed Parquet format.
+  - Raw telemetry is sourced using [OpenF1](https://openf1.org) and [FastF1](https://github.com/theOehrly/Fast-F1), pre-processed into compressed Parquet format at ~8 Hz sampling frequency.
   - Parquet files and session metadata are uploaded to a [Hugging Face dataset](https://huggingface.co/datasets/fullthrottlef1/fullthrottle), which acts as the CDN origin.
   - The frontend requests `.parquet` files from Hugging Face's CDN. Each file is a few MB.
   - The client parses the data in-browser using `hyparquet`. Once a session is loaded, switching between drivers and laps is near-instant.
 
 ## Data Pipeline
 
-Telemetry ingestion runs locally. F1's live timing servers block cloud/datacenter IP ranges (including GitHub-hosted Actions runners), so there is no CI cron for this. After a race weekend, sync from your own machine:
+Telemetry ingestion runs via OpenF1 (and FastF1) and syncs to Hugging Face:
 
 ```bash
 cd ingest

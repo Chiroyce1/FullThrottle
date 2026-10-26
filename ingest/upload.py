@@ -3,12 +3,12 @@ from huggingface_hub import HfApi
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
-HF_REPO = os.getenv("HF_REPO")
+HF_REPO = os.getenv("HF_REPO", "fullthrottlef1/fullthrottle")
 HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("HF_WRITE_KEY")
 
 def main():
     if not HF_REPO:
-        print("Error: HF_REPO not found in .env")
+        print("Error: HF_REPO not found")
         return
 
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static', 'data'))

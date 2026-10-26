@@ -1,0 +1,63 @@
+name: Ingest Telemetry
+
+on:
+  schedule:
+    # Run every 1 hour
+    - cron: "0 * * * *"
+  workflow_dispatch:
+    inputs:
+      year:
+        description: "Season Year"
+        required: false
+        default: "2026"
+      round:
+        description: "Round Number (leave blank to auto-detect missing completed rounds)"
+        required: false
+        default: ""
+      session:
+        description: "Session code (e.g. r, q, or blank for all)"
+        required: false
+        default: ""
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed so the bot can commit metadata.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r ingest/requirements.txt
+
+      - name: Run pipeline tests
+        run: python -m unittest discover ingest
+
+      - name: Ingest & sync telemetry
+        working-directory: ingest
+        env:
+          HF_TOKEN: ${{ secrets.HF_WRITE_KEY || secrets.HF_TOKEN }}
+          HF_REPO: "${{ secrets.HF_REPO || 'fullthrottlef1/fullthrottle' }}"
+          YEAR: ${{ inputs.year || '2026' }}
+          ROUND: ${{ inputs.round }}
+          SESSION: ${{ inputs.session }}
+        run: |
+          CMD="python sync.py $YEAR --upload"
+          if [ -n "$ROUND" ]; then
+            CMD="$CMD --round $ROUND"
+          fi
+          if [ -n "$SESSION" ]; then
+            CMD="$CMD --session $SESSION"
+          fi
+          $CMD
+
+      - name: Commit updated metadata.json
+        uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: "chore: auto-update telemetry metadata.json"
+          file_pattern: "static/metadata.json"
