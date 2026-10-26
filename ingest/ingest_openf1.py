@@ -198,32 +198,32 @@ def main():
     parser = argparse.ArgumentParser(description="Ingest F1 telemetry from OpenF1")
     parser.add_argument("year", type=int, nargs="?", default=2026, help="Season year (e.g. 2026)")
     parser.add_argument("--round", type=int, default=None, help="Round number (e.g. 18 for USA GP)")
-    parser.add_argument("--session", type=str, default="r", help="Session code: r, q, fp1, fp2, fp3, s, sq, or all")
+    parser.add_argument("--session", type=str, default="all", help="Session code: r, q, fp1, fp2, fp3, s, sq, or all")
+    parser.add_argument("--force", action="store_true", help="Force re-download even if already processed")
     parser.add_argument("--output-dir", type=str, default=None, help="Output directory path for parquet and json")
     args = parser.parse_args()
 
     client = OpenF1Client(request_delay=0.5)
+    processed_sessions = get_processed_sessions(args.year)
+    now_utc = datetime.now(timezone.utc)
+    today = now_utc.date()
 
     rounds_to_check = []
     if args.round is not None:
         rounds_to_check.append(args.round)
     else:
-        # Auto-discover completed rounds not yet in metadata.json
-        processed_sessions = get_processed_sessions(args.year)
-        now_date = datetime.now(timezone.utc).date()
+        # Auto-discover completed rounds
         schedule = fetch_year_schedule(client, args.year)
         for race in schedule:
             try:
                 r_date = datetime.strptime(race.get("date", ""), "%Y-%m-%d").date()
-                if r_date <= now_date:
-                    r_num = int(race.get("round"))
-                    if f"f1_{args.year}_rd{r_num}_r" not in processed_sessions:
-                        rounds_to_check.append(r_num)
+                if r_date <= today:
+                    rounds_to_check.append(int(race.get("round")))
             except Exception:
                 continue
 
     if not rounds_to_check:
-        print(f"All completed rounds for {args.year} are already processed in metadata.json.")
+        print(f"No completed rounds found for {args.year}.")
         return
 
     target_session_code = args.session.lower()
@@ -234,6 +234,18 @@ def main():
                 code = get_session_code(s)
                 if target_session_code != "all" and code != target_session_code:
                     continue
+
+                session_base = f"f1_{args.year}_rd{round_id}_{code}"
+                if session_base in processed_sessions and not args.force:
+                    print(f"Skipping {session_base}: already in metadata.json")
+                    continue
+
+                # Ensure session has actually started
+                s_start = datetime.fromisoformat(s.get("date_start").replace("Z", "+00:00"))
+                if s_start > now_utc and not args.force:
+                    print(f"Skipping {session_base}: session has not started yet ({s_start})")
+                    continue
+
                 ingest_session(
                     client=client,
                     year=args.year,
@@ -245,7 +257,7 @@ def main():
                     output_dir=args.output_dir
                 )
         except Exception as e:
-            print(f"Error ingesting Round {round_id}: {e}")
+            print(f"Error checking/ingesting Round {round_id}: {e}")
 
 
 if __name__ == "__main__":

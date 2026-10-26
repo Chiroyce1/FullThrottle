@@ -2,8 +2,9 @@ name: Ingest Telemetry
 
 on:
   schedule:
-    # Run every 1 hour
-    - cron: "0 * * * *"
+    # Run hourly on Friday, Saturday, Sunday, and early Monday UTC (F1 weekend sessions)
+    - cron: "0 * * * 5,6,0"
+    - cron: "0 0-4 * * 1"
   workflow_dispatch:
     inputs:
       year:
@@ -15,15 +16,15 @@ on:
         required: false
         default: ""
       session:
-        description: "Session code (e.g. r, q, or blank for all)"
+        description: "Session code (e.g. all, r, q, fp1)"
         required: false
-        default: ""
+        default: "all"
 
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Needed so the bot can commit metadata.json
+      contents: write # Needed so github-actions[bot] can commit metadata.json
     steps:
       - uses: actions/checkout@v4
 
@@ -32,13 +33,20 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Fast pre-check pending sessions
+        id: precheck
+        run: python ingest/check_pending.py ${{ inputs.year || '2026' }}
+
       - name: Install dependencies
+        if: github.event_name == 'workflow_dispatch' || steps.precheck.outputs.has_pending == 'true'
         run: pip install -r ingest/requirements.txt
 
       - name: Run pipeline tests
+        if: github.event_name == 'workflow_dispatch' || steps.precheck.outputs.has_pending == 'true'
         run: python -m unittest discover ingest
 
       - name: Ingest & sync telemetry
+        if: github.event_name == 'workflow_dispatch' || steps.precheck.outputs.has_pending == 'true'
         working-directory: ingest
         env:
           HF_TOKEN: ${{ secrets.HF_WRITE_KEY || secrets.HF_TOKEN }}
@@ -57,7 +65,11 @@ jobs:
           $CMD
 
       - name: Commit updated metadata.json
+        if: github.event_name == 'workflow_dispatch' || steps.precheck.outputs.has_pending == 'true'
         uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: "chore: auto-update telemetry metadata.json"
           file_pattern: "static/metadata.json"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"
+          commit_author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
