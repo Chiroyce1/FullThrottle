@@ -1,10 +1,16 @@
 """
 Zero-dependency pre-flight check for GitHub Actions telemetry sync.
 Uses only standard library (urllib, json) to complete in <1 second.
-Checks whether any completed F1 session is missing from static/metadata.json.
+Checks whether any scheduled F1 session has finished and is missing from
+static/metadata.json.
 
-Exit codes / outputs:
-- Prints has_pending=true/false to GITHUB_OUTPUT (or stdout).
+The schedule check uses session dates/times, not just the race date, so
+Friday/Saturday practice and qualifying sessions trigger the pipeline before
+Sunday's race. A short post-session buffer avoids ingesting in-progress data.
+
+Outputs:
+- Writes has_pending=true/false to GITHUB_OUTPUT.
+- Prints a human-readable summary to stdout.
 """
 
 import os
@@ -13,8 +19,12 @@ import json
 import urllib.request
 from datetime import datetime, timezone
 
+try:
+    from schedule_utils import pending_sessions
+except ImportError:  # Also support `python -m ingest.check_pending`
+    from ingest.schedule_utils import pending_sessions
+
 JOLPICA_BASE = "https://api.jolpi.ca/ergast/f1"
-OPENF1_BASE = "https://api.openf1.org/v1"
 
 def get_processed_sessions(metadata_path, year):
     processed = set()
@@ -43,13 +53,12 @@ def fetch_json(url):
     with urllib.request.urlopen(req, timeout=10) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
-def check_pending(year=2026):
+def check_pending(year=2026, now=None):
     here = os.path.dirname(os.path.abspath(__file__))
     metadata_path = os.path.abspath(os.path.join(here, "..", "static", "metadata.json"))
     processed = get_processed_sessions(metadata_path, year)
 
-    now_utc = datetime.now(timezone.utc)
-    today = now_utc.date()
+    now_utc = now or datetime.now(timezone.utc)
 
     # 1. Fetch Jolpica race calendar
     try:
@@ -59,20 +68,11 @@ def check_pending(year=2026):
         print(f"Jolpica schedule fetch failed ({e}), defaulting to run full pipeline.", file=sys.stderr)
         return True, ["calendar_unavailable"]
 
-    pending = []
-    for race in races:
-        try:
-            r_date = datetime.strptime(race.get("date", ""), "%Y-%m-%d").date()
-            if r_date <= today:
-                r_num = int(race.get("round", 0))
-                # Check if at least qualifying and race are processed
-                for code in ["q", "r"]:
-                    session_key = f"f1_{year}_rd{r_num}_{code}"
-                    if session_key not in processed:
-                        pending.append(session_key)
-        except Exception:
-            continue
+    if not races:
+        print("Jolpica returned an empty calendar, defaulting to run full pipeline.", file=sys.stderr)
+        return True, ["calendar_unavailable"]
 
+    pending = pending_sessions(races, processed, year, now_utc)
     return len(pending) > 0, pending
 
 def main():

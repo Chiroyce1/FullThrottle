@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from utils import get_processed_sessions
+from schedule_utils import started_rounds
 from openf1.constants import OPENF1_BASE, JOLPICA_BASE, TYPE_MAP, ESSENTIAL_COLUMNS, get_session_code
 from openf1.client import OpenF1Client
 from openf1.meeting import fetch_meeting_and_sessions, fetch_year_schedule
@@ -206,24 +207,18 @@ def main():
     client = OpenF1Client(request_delay=0.5)
     processed_sessions = get_processed_sessions(args.year)
     now_utc = datetime.now(timezone.utc)
-    today = now_utc.date()
 
     rounds_to_check = []
     if args.round is not None:
         rounds_to_check.append(args.round)
     else:
-        # Auto-discover completed rounds
+        # Include the current weekend as soon as its first session starts.
+        # Individual sessions are still skipped below until they have finished.
         schedule = fetch_year_schedule(client, args.year)
-        for race in schedule:
-            try:
-                r_date = datetime.strptime(race.get("date", ""), "%Y-%m-%d").date()
-                if r_date <= today:
-                    rounds_to_check.append(int(race.get("round")))
-            except Exception:
-                continue
+        rounds_to_check = started_rounds(schedule, now_utc)
 
     if not rounds_to_check:
-        print(f"No completed rounds found for {args.year}.")
+        print(f"No started rounds found for {args.year}.")
         return
 
     target_session_code = args.session.lower()
@@ -240,11 +235,18 @@ def main():
                     print(f"Skipping {session_base}: already in metadata.json")
                     continue
 
-                # Ensure session has actually started
+                # Ensure session has actually started and finished
                 s_start = datetime.fromisoformat(s.get("date_start").replace("Z", "+00:00"))
-                if s_start > now_utc and not args.force:
-                    print(f"Skipping {session_base}: session has not started yet ({s_start})")
-                    continue
+                s_end_raw = s.get("date_end")
+                if not args.force:
+                    if s_end_raw:
+                        s_end = datetime.fromisoformat(s_end_raw.replace("Z", "+00:00"))
+                        if s_end > now_utc:
+                            print(f"Skipping {session_base}: session has not finished yet ({s_end})")
+                            continue
+                    elif s_start > now_utc:
+                        print(f"Skipping {session_base}: session has not started yet ({s_start})")
+                        continue
 
                 ingest_session(
                     client=client,
