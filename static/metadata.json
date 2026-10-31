@@ -576,6 +576,24 @@
                     "location": "Austin",
                     "circuit": "Circuit of the Americas",
                     "date": "2026-10-23"
+                },
+                {
+                    "round": 19,
+                    "name": "Mexico City Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "fp2",
+                            "label": "Practice 2"
+                        }
+                    ],
+                    "country": "Mexico",
+                    "location": "Mexico City",
+                    "circuit": "Aut\u00f3dromo Hermanos Rodr\u00edguez",
+                    "date": "2026-10-30"
                 }
             ]
         },
