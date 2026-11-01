@@ -22,24 +22,36 @@ FullThrottle is built **edge-first and client-driven**. Instead of relying on a 
 - **Frontend:** Built with [SvelteKit](https://kit.svelte.dev/) (Svelte 5) for a fast and reactive interface.
 - **Visualizations:** [D3.js](https://d3js.org/) for all the telemetry visualizations
 - **Data Pipeline:**
-  - Raw telemetry is sourced using [OpenF1](https://openf1.org) and [FastF1](https://github.com/theOehrly/Fast-F1), pre-processed into compressed Parquet format at ~8 Hz sampling frequency.
-  - Parquet files and session metadata are uploaded to a [Hugging Face dataset](https://huggingface.co/datasets/fullthrottlef1/fullthrottle), which acts as the CDN origin.
+  - Telemetry is primarily sourced using [OpenF1](https://openf1.org), an open REST API for Formula 1 data.
+  - Raw car telemetry and location streams are synchronized using time-weighted interpolation and pre-processed into compressed Parquet format at ~8 Hz effective frequency.
+  - Compressed parquet files and session metadata are uploaded to a [Hugging Face dataset](https://huggingface.co/datasets/fullthrottlef1/fullthrottle)
   - The frontend requests `.parquet` files from Hugging Face's CDN. Each file is a few MB.
   - The client parses the data in-browser using `hyparquet`. Once a session is loaded, switching between drivers and laps is near-instant.
 
 ## Data Pipeline
 
-Telemetry ingestion runs via OpenF1 (and FastF1) and syncs to Hugging Face:
+FullThrottle uses **OpenF1** by default for automated telemetry ingestion, eliminating the need for F1 TV subscription credentials or dealing with bot-detection gates on cloud CI runners:
 
 ```bash
 cd ingest
 
-# Ingest new sessions, apply enrichment patches, and rebuild metadata
+# Ingest new sessions using OpenF1, apply enrichment patches, and rebuild metadata
 python3 sync.py 2026
 
 # Run sync and upload fresh parquet files directly to Hugging Face
 python3 sync.py 2026 --upload
 ```
+
+### Using FastF1 Locally
+
+If you have an active F1 TV subscription and prefer sourcing telemetry via [FastF1](https://github.com/theOehrly/Fast-F1), you can run the pipeline locally with the `--fastf1` flag:
+
+```bash
+# Ingest using FastF1 (automatically falls back to OpenF1 if F1 TV auth fails)
+python3 sync.py 2026 --fastf1
+```
+
+> **Note:** FastF1 access for recent sessions requires F1 TV authentication. Automated CI runs always default to OpenF1 because cloud/datacenter runners get blocked by F1 TV's Cloudflare and Akamai bot gates.
 
 To backfill new telemetry enrichments (like weather time-series, pit stop timelines, and quali segment breakdowns) without re-downloading everything:
 

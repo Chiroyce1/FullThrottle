@@ -179,7 +179,24 @@ def ingest_session(
         "session_results": classification
     }
 
-    # 7. Save Parquet and JSON files
+    # 7. Basic data sanity checks
+    if len(final_df) == 0:
+        raise ValueError(f"No telemetry rows generated for session {session_key}")
+
+    # Check that completed lap lengths fall within realistic F1 bounds (2,500m to 8,000m)
+    for driver_num, d_df in final_df.groupby("driver_number"):
+        diffs = d_df["distance"].diff().dropna()
+        if (diffs < -1.0).any():
+            warnings.warn(f"Driver {driver_num} has non-monotonic distance decreases.")
+        
+        lap_lens = d_df.groupby("lap_number")["distance"].apply(lambda s: s.max() - s.min())
+        flying_laps = lap_lens[lap_lens > 1000]
+        if len(flying_laps) > 0:
+            median_lap_len = flying_laps.median()
+            if median_lap_len < 2500 or median_lap_len > 8000:
+                warnings.warn(f"Driver {driver_num} median lap length unusual: {median_lap_len:.1f}m")
+
+    # 8. Save Parquet and JSON files
     base_name = f"f1_{year}_rd{round_id}_{session_code}"
     target_dir = output_dir or os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "data", str(year))
     os.makedirs(target_dir, exist_ok=True)
@@ -198,19 +215,19 @@ def ingest_session(
 def main():
     parser = argparse.ArgumentParser(description="Ingest F1 telemetry from OpenF1")
     parser.add_argument("year", type=int, nargs="?", default=2026, help="Season year (e.g. 2026)")
-    parser.add_argument("--round", type=int, default=None, help="Round number (e.g. 18 for USA GP)")
+    parser.add_argument("--round", dest="rounds", action="append", type=int, default=[], help="Round number (e.g. 18 for USA GP)")
     parser.add_argument("--session", type=str, default="all", help="Session code: r, q, fp1, fp2, fp3, s, sq, or all")
     parser.add_argument("--force", action="store_true", help="Force re-download even if already processed")
     parser.add_argument("--output-dir", type=str, default=None, help="Output directory path for parquet and json")
     args = parser.parse_args()
 
-    client = OpenF1Client(request_delay=0.5)
+    client = OpenF1Client(request_delay=0.75)
     processed_sessions = get_processed_sessions(args.year)
     now_utc = datetime.now(timezone.utc)
 
     rounds_to_check = []
-    if args.round is not None:
-        rounds_to_check.append(args.round)
+    if args.rounds:
+        rounds_to_check = args.rounds
     else:
         # Include the current weekend as soon as its first session starts.
         # Individual sessions are still skipped below until they have finished.

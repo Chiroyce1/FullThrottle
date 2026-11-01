@@ -40,6 +40,7 @@ def main():
     parser.add_argument("--skip-patches", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--skip-metadata", action="store_true")
     parser.add_argument("--upload", action="store_true", help="Push to Hugging Face at the end.")
+    parser.add_argument("--force", action="store_true", help="Force re-ingest even if already processed.")
     parser.add_argument("--force-backfill", action="store_true", help="Re-apply all enrichments.")
     parser.add_argument("--force-patches", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--dry-run", action="store_true")
@@ -65,6 +66,8 @@ def main():
                     cmd_openf1 += ["--round", str(r)]
                 for s in args.sessions or []:
                     cmd_openf1 += ["--session", s]
+                if args.force:
+                    cmd_openf1 += ["--force"]
                 run_step("ingest new sessions (OpenF1 fallback)", cmd_openf1)
         else:
             cmd = [py, "ingest_openf1.py", str(args.year)]
@@ -72,6 +75,8 @@ def main():
                 cmd += ["--round", str(r)]
             for s in args.sessions or []:
                 cmd += ["--session", s]
+            if args.force:
+                cmd += ["--force"]
             run_step("ingest new sessions (OpenF1)", cmd)
     else:
         print("\n===== ingest new sessions (skipped) =====")

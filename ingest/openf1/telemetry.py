@@ -47,7 +47,11 @@ def build_driver_telemetry(
     df_car["date"] = pd.to_datetime(df_car["date"], format="ISO8601")
     df_loc["date"] = pd.to_datetime(df_loc["date"], format="ISO8601")
 
-    # FastF1 algorithm: outer join on timestamp, keep full ~8Hz merged timestamps
+    # Drop any duplicate timestamps within each feed before merging
+    df_car = df_car.drop_duplicates(subset=["date"], keep="last")
+    df_loc = df_loc.drop_duplicates(subset=["date"], keep="last")
+
+    # Outer join on timestamp: keep all telemetry & position timestamps
     merged = pd.merge(
         df_loc.set_index("date")[["x", "y", "z"]],
         df_car.set_index("date")[["speed", "rpm", "n_gear", "throttle", "brake", "drs"]],
@@ -56,18 +60,19 @@ def build_driver_telemetry(
         right_index=True
     ).sort_index()
 
-    # Interpolate continuous variables
-    merged["speed"] = merged["speed"].interpolate(method="linear").bfill().ffill()
-    merged["rpm"] = merged["rpm"].interpolate(method="linear").bfill().ffill()
-    merged["throttle"] = merged["throttle"].interpolate(method="linear").bfill().ffill()
-    merged["x"] = merged["x"].interpolate(method="linear").bfill().ffill()
-    merged["y"] = merged["y"].interpolate(method="linear").bfill().ffill()
-    merged["z"] = merged["z"].interpolate(method="linear").bfill().ffill()
+    # Time-weighted interpolation: interpolates proportionally to elapsed milliseconds,
+    # avoiding step-function artifacts when location & car packets arrive asynchronously.
+    merged["speed"] = merged["speed"].interpolate(method="time").bfill().ffill()
+    merged["rpm"] = merged["rpm"].interpolate(method="time").bfill().ffill()
+    merged["throttle"] = merged["throttle"].interpolate(method="time").bfill().ffill()
+    merged["x"] = merged["x"].interpolate(method="time").bfill().ffill()
+    merged["y"] = merged["y"].interpolate(method="time").bfill().ffill()
+    merged["z"] = merged["z"].interpolate(method="time").bfill().ffill()
 
     # Discrete variables: forward fill then backward fill
-    merged["n_gear"] = merged["n_gear"].ffill().bfill().fillna(0).astype(int)
-    merged["brake"] = (merged["brake"].ffill().bfill().fillna(0) > 0).astype(bool)
-    merged["drs"] = merged["drs"].ffill().bfill().fillna(0).astype(int)
+    merged["n_gear"] = pd.to_numeric(merged["n_gear"].ffill().bfill(), errors="coerce").fillna(0).astype(int)
+    merged["brake"] = (pd.to_numeric(merged["brake"].ffill().bfill(), errors="coerce").fillna(0) > 0)
+    merged["drs"] = pd.to_numeric(merged["drs"].ffill().bfill(), errors="coerce").fillna(0).astype(int)
 
     df_merged = merged.reset_index().dropna(subset=["date"])
 
@@ -78,7 +83,7 @@ def build_driver_telemetry(
     df_merged = df_merged[df_merged["session_time"] >= -1800].copy()
 
     # Calculate cumulative distance: speed is km/h -> m/s is / 3.6
-    dt = df_merged["session_time"].diff().fillna(0.0).clip(lower=0.0, upper=10.0)
+    dt = df_merged["date"].diff().dt.total_seconds().fillna(0.0).clip(lower=0.0, upper=10.0)
     speed_ms = df_merged["speed"] / 3.6
     df_merged["distance"] = (speed_ms * dt).cumsum().astype(np.float32)
 
