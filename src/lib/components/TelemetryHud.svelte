@@ -116,18 +116,25 @@
 		return val > 0 && val <= 1 ? val * 100 : val;
 	});
 
+	const tweenDuration = $derived(
+		Math.round((1000 / (settings.dataFrequency || 8)) * 0.85),
+	);
 	const smoothSpeed = new Tween(0, { duration: 100, easing: linear });
 	const smoothRpm = new Tween(0, { duration: 100, easing: linear });
 	const smoothThrottle = new Tween(0, { duration: 100, easing: linear });
 	const smoothBrake = new Tween(0, { duration: 100, easing: linear });
 
 	$effect(() => {
-		smoothSpeed.set(speed, { duration: settings.speedInterpolation ? 100 : 0 });
-		smoothRpm.set(rpm, { duration: 100 });
-		smoothThrottle.set(throttle, {
-			duration: settings.throttleInterpolation ? 100 : 0,
+		smoothSpeed.set(speed, {
+			duration: settings.speedInterpolation ? tweenDuration : 0,
 		});
-		smoothBrake.set(brake, { duration: settings.brakeInterpolation ? 100 : 0 });
+		smoothRpm.set(rpm, { duration: tweenDuration });
+		smoothThrottle.set(throttle, {
+			duration: settings.throttleInterpolation ? tweenDuration : 0,
+		});
+		smoothBrake.set(brake, {
+			duration: settings.brakeInterpolation ? tweenDuration : 0,
+		});
 	});
 
 	const formatLapTime = (seconds: number | null | undefined): string => {

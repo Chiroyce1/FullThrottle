@@ -10,7 +10,7 @@
 	let speedInterp = $state(browser ? settings.speedInterpolation : true);
 	let throttleInterp = $state(browser ? settings.throttleInterpolation : true);
 	let brakeInterp = $state(browser ? settings.brakeInterpolation : true);
-	let dataFreq = $state(browser ? settings.dataFrequency.toString() : "4");
+	let dataFreq = $state(browser ? settings.dataFrequency.toString() : "8");
 	let licoSensitivity = $state(
 		browser ? settings.licoThrottleSensitivity.toString() : "15",
 	);

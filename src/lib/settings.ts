@@ -36,7 +36,7 @@ const DEFAULTS: AppSettingsValues = {
 	speedInterpolation: true,
 	throttleInterpolation: true,
 	brakeInterpolation: true,
-	dataFrequency: 4,
+	dataFrequency: 8,
 	licoThrottleSensitivity: 15,
 };
 

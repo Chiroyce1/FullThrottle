@@ -19,7 +19,7 @@ from schedule_utils import started_rounds
 from openf1.constants import OPENF1_BASE, JOLPICA_BASE, TYPE_MAP, ESSENTIAL_COLUMNS, get_session_code
 from openf1.client import OpenF1Client
 from openf1.meeting import fetch_meeting_and_sessions, fetch_year_schedule
-from openf1.telemetry import build_driver_telemetry
+from openf1.telemetry import build_driver_telemetry, build_track_status_timeline
 from openf1.formatter import (
     build_driver_metadata,
     build_weather_metadata,
@@ -81,6 +81,8 @@ def ingest_session(
     pos_df = pd.DataFrame(pos_raw)
 
     weather_raw = client.get(f"{OPENF1_BASE}/weather", params={"session_key": session_key}) or []
+    race_control_raw = client.get(f"{OPENF1_BASE}/race_control", params={"session_key": session_key}) or []
+    track_status_df = build_track_status_timeline(race_control_raw, session_start)
 
     # 3. Fetch Jolpica Ergast Results for official session classifications
     jolpica_results = []
@@ -115,7 +117,8 @@ def ingest_session(
                 laps_df=laps_df,
                 stints_df=stints_df,
                 intervals_df=intervals_df,
-                pos_df=pos_df
+                pos_df=pos_df,
+                track_status_df=track_status_df
             )
             if df_drv is not None and not df_drv.empty:
                 all_driver_dfs.append(df_drv)

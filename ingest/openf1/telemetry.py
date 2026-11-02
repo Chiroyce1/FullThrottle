@@ -9,6 +9,67 @@ from .constants import OPENF1_BASE
 from .client import OpenF1Client
 
 
+def build_track_status_timeline(race_control_raw: list, session_start: datetime) -> pd.DataFrame:
+    """
+    Reconstructs continuous TrackStatus timeline from OpenF1 race_control messages.
+    TrackStatus standard codes:
+      1 = All Clear / Green
+      2 = Yellow Flag
+      4 = Safety Car (SC)
+      5 = Red Flag
+      6 = Virtual Safety Car (VSC) Deployed
+      7 = Virtual Safety Car (VSC) Ending
+    """
+    if not race_control_raw:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(race_control_raw)
+    if "date" not in df.columns:
+        return pd.DataFrame()
+
+    df["date"] = pd.to_datetime(df["date"], format="ISO8601")
+    df = df.sort_values("date")
+
+    initial_date = session_start - pd.Timedelta(minutes=30)
+    current_status = 1
+    timeline = [{"date": initial_date, "track_status": 1}]
+
+    for _, r in df.iterrows():
+        msg = str(r.get("message") or "").upper()
+        cat = str(r.get("category") or "")
+        flag = str(r.get("flag") or "").upper()
+        scope = str(r.get("scope") or "")
+
+        new_status = None
+        # Red Flag (careful: 'CHEQUERED' contains 'RED' as a substring)
+        if ("RED FLAG" in msg or flag == "RED") and "CHEQUERED" not in msg and "RED LIGHT" not in msg:
+            new_status = 5
+        elif "SAFETY CAR DEPLOYED" in msg or (cat == "SafetyCar" and "DEPLOYED" in msg and "VSC" not in msg):
+            new_status = 4
+        elif "VSC DEPLOYED" in msg or "VIRTUAL SAFETY CAR DEPLOYED" in msg:
+            new_status = 6
+        elif "VSC ENDING" in msg:
+            new_status = 7
+        elif current_status == 5:
+            # While in red flag, track only resumes on session restart
+            if "SESSION STARTED" in msg or "GREEN LIGHT" in msg or "STANDING START" in msg or "OVERTAKE ENABLED" in msg:
+                new_status = 4 if "SAFETY CAR" in msg else 1
+        elif current_status in [4, 6, 7]:
+            # Exiting SC / VSC
+            if "TRACK CLEAR" in msg or ("CLEAR" in msg and scope == "Track") or "OVERTAKE ENABLED" in msg or "GREEN LIGHT" in msg:
+                new_status = 1
+        elif "TRACK CLEAR" in msg or ("CLEAR" in msg and scope == "Track"):
+            new_status = 1
+        elif flag == "YELLOW" and scope == "Track":
+            new_status = 2
+
+        if new_status is not None and new_status != current_status:
+            current_status = new_status
+            timeline.append({"date": r["date"], "track_status": current_status})
+
+    return pd.DataFrame(timeline).sort_values("date")
+
+
 def build_driver_telemetry(
     client: OpenF1Client,
     session_key: int,
@@ -17,7 +78,8 @@ def build_driver_telemetry(
     laps_df: pd.DataFrame,
     stints_df: pd.DataFrame,
     intervals_df: pd.DataFrame,
-    pos_df: pd.DataFrame
+    pos_df: pd.DataFrame,
+    track_status_df: pd.DataFrame = None
 ) -> pd.DataFrame:
     """
     Fetches car_data and location for a single driver, performs FastF1-equivalent
@@ -192,7 +254,16 @@ def build_driver_telemetry(
     # Calculate distance_to_driver_ahead = time_gap * (speed / 3.6)
     df_merged["distance_to_driver_ahead"] = (df_merged["time_gap"] * (df_merged["speed"] / 3.6)).clip(lower=0.0).astype(np.float32)
 
-    # Default TrackStatus = 1 (Track Clear)
-    df_merged["track_status"] = 1
+    # Merge TrackStatus timeline
+    if track_status_df is not None and not track_status_df.empty:
+        df_merged = pd.merge_asof(
+            df_merged.sort_values("date"),
+            track_status_df[["date", "track_status"]].sort_values("date"),
+            on="date",
+            direction="backward"
+        )
+        df_merged["track_status"] = pd.to_numeric(df_merged["track_status"].fillna(1), errors="coerce").astype(np.uint8)
+    else:
+        df_merged["track_status"] = np.uint8(1)
 
     return df_merged
