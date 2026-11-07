@@ -8,3 +8,4 @@ export type {
 	LoadFeedback,
 	UrlSlotSpec,
 } from "./telemetry-state.svelte";
+export { TelemetryView } from "./telemetry-view.svelte";

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { toggleMode } from "mode-watcher";
-	import SunIcon from "@lucide/svelte/icons/sun";
-	import MoonIcon from "@lucide/svelte/icons/moon";
+	import { Moon as MoonIcon, Sun as SunIcon } from "phosphor-svelte";
 
 	import { cn } from "$lib/utils";
 

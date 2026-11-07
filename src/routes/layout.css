@@ -4,99 +4,71 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── Design rules ─────────────────────────────────────────────────────
+   1. Sans by default. Mono only for numeric data, lap times, codes and .eyebrow.
+   2. Sentence case everywhere except .eyebrow. No uppercase buttons.
+   3. Red (--primary) only for the primary action, active state, one accent.
+   4. Minimum text size is text-2xs (11px). No text-[Npx].
+   5. Two radii: rounded-md (controls, cards) and rounded-full (pills).
+   ──────────────────────────────────────────────────────────────────── */
+
 /* ── Dark theme (default) ─────────────────────────────────────────────── */
 :root,
 .dark {
-  --radius: 0.625rem;
-  --background: #0a0a0a;
-  --foreground: #ffffff;
-  --card: #151515;
-  --card-foreground: #ffffff;
-  --popover: #151515;
-  --popover-foreground: #ffffff;
+  --radius: 0.5rem;
+  --background: #09090b;
+  --foreground: #ededef;
+  --card: #0f0f11;
+  --card-foreground: #ededef;
+  --popover: #141417;
+  --popover-foreground: #ededef;
   --primary: #e10600;
   --primary-foreground: #ffffff;
-  --secondary: #1f1f1f;
-  --secondary-foreground: #ffffff;
-  --muted: #1f1f1f;
-  --muted-foreground: #a1a1aa;
-  --accent: #1f1f1f;
-  --accent-foreground: #ffffff;
+  --primary-subtle: rgb(225 6 0 / 0.12);
+  --secondary: #18181b;
+  --secondary-foreground: #ededef;
+  --muted: #18181b;
+  --muted-foreground: #8b8b93;
+  --accent: #1c1c20;
+  --accent-foreground: #ededef;
   --destructive: #7f1d1d;
-  --border: #27272a;
-  --input: #27272a;
+  --border: #1f1f23;
+  --border-strong: #2e2e34;
+  --input: #26262b;
   --ring: #e10600;
-  --chart-1: #e10600;
-  --chart-2: #ffffff;
-  --chart-3: #a1a1aa;
-  --chart-4: #1f1f1f;
-  --chart-5: #151515;
-  --sidebar: #0a0a0a;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #e10600;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1f1f1f;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #27272a;
-  --sidebar-ring: #e10600;
-  /* Semantic tokens */
-  --surface: #0f0f0f;
-  --surface-raised: #1a1a1a;
-  --surface-overlay: #252525;
-  --on-surface: #ffffff;
-  --on-surface-muted: #a1a1aa;
-  --on-surface-subtle: #52525b;
-  --divider: #27272a;
 }
 
 /* ── Light theme ──────────────────────────────────────────────────────── */
 :root:not(.dark) {
-  --background: #f5f5f5;
-  --foreground: #111111;
+  --background: #fafafa;
+  --foreground: #111113;
   --card: #ffffff;
-  --card-foreground: #111111;
+  --card-foreground: #111113;
   --popover: #ffffff;
-  --popover-foreground: #111111;
+  --popover-foreground: #111113;
   --primary: #e10600;
   --primary-foreground: #ffffff;
-  --secondary: #ebebeb;
-  --secondary-foreground: #111111;
-  --muted: #ebebeb;
-  --muted-foreground: #6b6b6b;
-  --accent: #ebebeb;
-  --accent-foreground: #111111;
+  --primary-subtle: rgb(225 6 0 / 0.08);
+  --secondary: #f1f1f3;
+  --secondary-foreground: #111113;
+  --muted: #f1f1f3;
+  --muted-foreground: #6b6b73;
+  --accent: #ececef;
+  --accent-foreground: #111113;
   --destructive: #b91c1c;
-  --border: #e0e0e0;
-  --input: #e0e0e0;
+  --border: #e6e6e9;
+  --border-strong: #d4d4d8;
+  --input: #e0e0e4;
   --ring: #e10600;
-  --chart-1: #e10600;
-  --chart-2: #111111;
-  --chart-3: #6b6b6b;
-  --chart-4: #ebebeb;
-  --chart-5: #ffffff;
-  --sidebar: #f5f5f5;
-  --sidebar-foreground: #111111;
-  --sidebar-primary: #e10600;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ebebeb;
-  --sidebar-accent-foreground: #111111;
-  --sidebar-border: #e0e0e0;
-  --sidebar-ring: #e10600;
-  /* Semantic tokens */
-  --surface: #f0f0f0;
-  --surface-raised: #ffffff;
-  --surface-overlay: #e8e8e8;
-  --on-surface: #111111;
-  --on-surface-muted: #6b6b6b;
-  --on-surface-subtle: #9a9a9a;
-  --divider: #e0e0e0;
 }
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: var(--radius);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: 12px;
+  --radius-2xl: 12px;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -105,6 +77,7 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-subtle: var(--primary-subtle);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -113,31 +86,32 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-  /* Semantic token mappings for Tailwind */
-  --color-surface: var(--surface);
-  --color-surface-raised: var(--surface-raised);
-  --color-surface-overlay: var(--surface-overlay);
-  --color-on-surface: var(--on-surface);
-  --color-on-surface-muted: var(--on-surface-muted);
-  --color-on-surface-subtle: var(--on-surface-subtle);
-  --color-divider: var(--divider);
-  --font-sans: "IBM Plex Sans", sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --font-display: "Saira Condensed", "Geist", sans-serif;
+}
+
+/* ── Type scale (11px floor) ──────────────────────────────────────────── */
+@theme {
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.375rem;
+  --text-lg: 1rem;
+  --text-lg--line-height: 1.5rem;
+  --text-display-sm: 2rem;
+  --text-display-sm--line-height: 1;
+  --text-display-md: 3rem;
+  --text-display-md--line-height: 0.95;
+  --text-display-lg: 4.5rem;
+  --text-display-lg--line-height: 0.92;
 }
 
 @layer base {
@@ -145,12 +119,52 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background font-sans text-foreground;
+    @apply bg-background font-sans text-foreground antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+}
+
+@layer components {
+  /* Small uppercase label — the only allowed uppercase mono */
+  .eyebrow {
+    @apply font-mono text-2xs font-medium tracking-[0.08em] text-muted-foreground uppercase;
+  }
+  /* Editorial "01" index numbers */
+  .section-index {
+    @apply font-mono text-2xs font-medium text-primary tabular-nums;
+  }
+  /* Display headline — condensed broadcast type, sentence case */
+  .display {
+    @apply font-display font-bold tracking-[-0.01em];
+  }
+  /* Scroll reveal (see $lib/actions/reveal) */
+  .reveal {
+    opacity: 0;
+    transform: translateY(12px);
+    transition:
+      opacity 0.6s ease,
+      transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .reveal.revealed {
+    opacity: 1;
+    transform: none;
+  }
+  .panel {
+    @apply rounded-md border border-border bg-card;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 }
 
 button {
   cursor: pointer;
+}
+
+/* Thin scrollbar for dense scroll regions (charts, tables) */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
 }
 
 .no-scrollbar {
@@ -159,4 +173,10 @@ button {
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }

@@ -4,7 +4,7 @@
 	import * as Command from "$lib/components/ui/command";
 	import * as Popover from "$lib/components/ui/popover";
 	import { cn } from "$lib/utils";
-	import { ChevronsUpDown, Check } from "lucide-svelte";
+	import { CaretUpDown as ChevronsUpDown, Check } from "phosphor-svelte";
 	import CompoundBadge from "$lib/components/CompoundBadge.svelte";
 
 	export interface SearchableSelectOption {
@@ -82,7 +82,7 @@
 						<span class="truncate">{selected.label}</span>
 					</span>
 				{:else}
-					<span class="truncate text-on-surface-subtle">{placeholder}</span>
+					<span class="truncate text-muted-foreground">{placeholder}</span>
 				{/if}
 				<ChevronsUpDown class="ms-2 size-4 shrink-0 opacity-50" />
 			</Button>
@@ -109,20 +109,20 @@
 										style={`background:${option.colorDot}`}
 									></span>
 								{/if}
-								<span class="truncate text-sm font-medium">{option.label}</span>
+								<span class="truncate text-sm">{option.label}</span>
 							</div>
 
 							<div class="flex items-center gap-2.5 shrink-0 ml-auto">
 								{#if option.rightLabel}
 									<span
-										class="font-mono text-[10px] tracking-wider text-muted-foreground uppercase"
+										class="text-xs text-muted-foreground"
 									>
 										{option.rightLabel}
 									</span>
 								{/if}
 								<span class="flex size-4 items-center justify-center shrink-0">
 									{#if value === option.value}
-										<Check class="size-3.5 text-primary stroke-[2.5]" />
+										<Check class="size-3.5 text-primary" weight="bold" />
 									{/if}
 								</span>
 							</div>

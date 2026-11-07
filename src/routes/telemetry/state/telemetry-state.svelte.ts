@@ -145,25 +145,67 @@ export class TelemetryState {
 
 	// ── Public slot management ────────────────────────────────────────────
 
+	/** Most drivers one comparison can hold. */
+	static readonly MAX_SLOTS = 4;
+
+	/**
+	 * Adds a driver on the main session, pre-filled with the best-placed
+	 * driver not already compared (instant: that session's data is loaded).
+	 */
 	addSlot() {
-		const lastSlot = this.slots[this.slots.length - 1];
+		if (this.slots.length >= TelemetryState.MAX_SLOTS) return;
+		const main = this.slots[0];
 		const s = makeSlot(
-			lastSlot
-				? {
-						year: lastSlot.year,
-						round: lastSlot.round,
-						session: lastSlot.session,
-						meta: lastSlot.meta,
-					}
-				: {},
+			main ? { year: main.year, round: main.round, session: main.session, meta: main.meta } : {},
 		);
+		const taken = new Set(this.slots.map((x) => x.driver));
+		const next = main?.meta
+			? topDrivers(main.meta, Object.keys(main.meta.drivers ?? {}).length).find(
+					(id) => !taken.has(id),
+				)
+			: undefined;
 		this.slots.push(s);
+		if (next) this.setDriver(s.id, next);
 
 		if (this.#addFeedbackTimer) clearTimeout(this.#addFeedbackTimer);
 		this.addDriverFeedback = "added";
 		this.#addFeedbackTimer = setTimeout(() => {
 			this.addDriverFeedback = "idle";
 		}, 1200);
+	}
+
+	// ── Main session ──────────────────────────────────────────────────────
+	// The session bar edits the main session (slot A's). Drivers on it move
+	// together; a driver moved to another session keeps it, which is how
+	// cross-session and cross-season comparisons work.
+
+	/** Whether a slot is on the main session. */
+	isOnMain(sid: number): boolean {
+		const main = this.selectionKey(0);
+		return !main || this.selectionKey(sid) === main;
+	}
+
+	#slotsOnMain(): SlotState[] {
+		return this.slots.filter((_, sid) => this.isOnMain(sid));
+	}
+
+	setMainTrack(year: string, round?: string) {
+		for (const s of this.#slotsOnMain()) this.setTrack(s.id, year, round);
+	}
+
+	setMainSession(session: string) {
+		for (const s of this.#slotsOnMain()) this.setSession(s.id, session);
+	}
+
+	/** Moves a slot back onto the main session. */
+	useMainSession(slotId: string) {
+		const main = this.slots[0];
+		const s = this.slots.find((x) => x.id === slotId);
+		if (!main || !s || s === main) return;
+		s.year = main.year;
+		s.round = main.round;
+		s.session = main.session;
+		this.#triggerMetaFetch(s);
 	}
 
 	removeSlot(sid: number) {

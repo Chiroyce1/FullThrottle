@@ -1,9 +1,31 @@
 import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
 import type { DriverMeta } from "$lib/types";
+import { MAX_LAP_TIME_SECONDS } from "$lib/constants";
+
+// Teach tailwind-merge the custom type scale from layout.css so conflicting
+// sizes (e.g. text-sm vs text-display-sm) resolve instead of both applying.
+const twMerge = extendTailwindMerge({
+	extend: { theme: { text: ["2xs", "display-sm", "display-md", "display-lg"] } },
+});
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
+}
+
+/**
+ * Lap time as m:ss.sss (or ss.sss under a minute). Missing, non-positive or
+ * implausible values (over MAX_LAP_TIME_SECONDS) render as `fallback`.
+ */
+export function formatLapTime(
+	seconds: number | null | undefined,
+	fallback = "–",
+): string {
+	if (seconds == null || !Number.isFinite(seconds)) return fallback;
+	if (seconds <= 0 || seconds > MAX_LAP_TIME_SECONDS) return fallback;
+	const mins = Math.floor(seconds / 60);
+	const secs = (seconds % 60).toFixed(3).padStart(6, "0");
+	return mins > 0 ? `${mins}:${secs}` : secs;
 }
 
 export function formatSessionTime(s: number): string {

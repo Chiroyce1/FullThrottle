@@ -1,11 +1,3 @@
-// ─── Telemetry chart constants ────────────────────────────────────────────────
-
-/** Height in px for the smaller telemetry charts (throttle, brake, rpm, gear) */
-export const CHART_HEIGHT = 150;
-
-/** Height in px for the main speed chart */
-export const CHART_HEIGHT_SPEED = 300;
-
 // ─── Lap time constants ───────────────────────────────────────────────────────
 
 /** Maximum plausible F1 lap time in seconds. Anything above counts as invalid. */
@@ -14,8 +6,7 @@ export const MAX_LAP_TIME_SECONDS = 600;
 // ─── LiCO (Lift and Coast) detection ─────────────────────────────────────────
 
 /** Default throttle % threshold below which a segment is flagged as LiCO.
- *  The live value comes from user settings (licoThrottleSensitivity); this
- *  is the hard-wired fallback used on the telemetry comparison page. */
+ *  Users can override it via settings.licoThrottleSensitivity. */
 export const LICO_THROTTLE_THRESHOLD = 20;
 
 /** Minimum distance (metres) a LiCO segment must span to be rendered */

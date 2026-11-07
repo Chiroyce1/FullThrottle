@@ -7,6 +7,11 @@
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export interface TrackPoint {
+	x: number;
+	y: number;
+}
+
 export interface TrackCorner {
 	number: number;
 	letter: string;
@@ -14,6 +19,9 @@ export interface TrackCorner {
 	distance: number;
 	x: number;
 	y: number;
+	/** Where the track starts / stops turning (ingest/corner_spans.py). */
+	entry?: TrackPoint;
+	exit?: TrackPoint;
 }
 
 export interface TrackData {

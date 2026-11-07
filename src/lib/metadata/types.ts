@@ -5,7 +5,7 @@
  *   - src/routes/+page.ts          (server load)
  *   - src/lib/components/SessionPicker.svelte
  *   - src/routes/telemetry/state/telemetry-state.svelte.ts
- *   - src/routes/telemetry/SlotRow.svelte
+ *   - src/lib/components/SessionSelects.svelte
  */
 
 export interface SessionEntry {

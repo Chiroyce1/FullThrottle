@@ -1,15 +1,16 @@
 <script lang="ts">
 	import SEO from "$lib/components/SEO.svelte";
-	import { Button } from "$lib/components/ui/button";
-	import { Separator } from "$lib/components/ui/separator";
 	import SessionPicker from "$lib/components/SessionPicker.svelte";
+	import { Button } from "$lib/components/ui/button";
+	import { Badge } from "$lib/components/ui/badge";
 	import type { PageData } from "./$types";
-	import posthog from "posthog-js";
 	import { latestYear, latestRound, latestSession } from "$lib/metadata/types";
+	import { ArrowRight, ArrowUpRight, Play } from "phosphor-svelte";
+	import { SITE_CONFIG } from "$lib/metadata/seo";
+	import { reveal } from "$lib/actions/reveal";
 
 	const { data }: { data: PageData } = $props();
 
-	// Latest available session for the quick-jump card
 	const latestYearEntry = $derived(latestYear(data.years));
 	const latestRoundEntry = $derived(latestRound(latestYearEntry));
 	const latestSessionEntry = $derived(latestSession(latestRoundEntry));
@@ -25,263 +26,192 @@
 
 	const features = [
 		{
-			tag: "LIVE",
 			title: "Telemetry charts",
-			desc: "Speed, throttle, brake, RPM, gear changes, and Lift & Coast (LiCO) synced as you scrub",
+			desc: "Speed, throttle, brake, RPM, gear and lift & coast, synced as you scrub.",
+			live: true,
 		},
 		{
-			tag: "LIVE",
-			title: "Track map",
-			desc: "Synced with the telemetry charts, the map shows where the car is on track",
-		},
-		{
-			tag: "LIVE",
 			title: "Session replay",
-			desc: "Replay any F1 session (Race, Quali, FP) from any year, with leaderboards, track maps and telemetry playback.",
+			desc: "Replay any race, qualifying or practice session with live timing and a track map.",
+			live: true,
 		},
 		{
-			tag: "LIVE",
-			title: "Cross-session compare",
-			desc: "Overlay any two drivers across sessions. Lap vs lap, compound vs compound, year vs year",
+			title: "Track map",
+			desc: "Follows the cursor across every chart, so you always know where the car is.",
+			live: true,
 		},
 		{
-			tag: "LIVE",
-			title: "Multi-driver compare",
-			desc: "Compare laps on the same track across multiple drivers and sessions",
-		},
-		{
-			tag: "LIVE",
 			title: "Corner analysis",
-			desc: "Minimum speeds, entry & exit telemetry, and head-to-head deltas per driver per lap.",
-		},
-	] as const;
-
-	const stack = [
-		{ label: "Svelte 5", sub: "Reactive UI", href: "https://svelte.dev" },
-		{ label: "d3.js", sub: "Visualizations", href: "https://d3js.org" },
-		{
-			label: "Parquet",
-			sub: "Data Storage",
-			href: "https://parquet.apache.org",
+			desc: "Minimum speeds and head-to-head deltas for every corner, per driver, per lap.",
+			live: true,
 		},
 		{
-			label: "FastF1",
-			sub: "Data Source",
-			href: "https://github.com/theOehrly/Fast-F1",
+			title: "Cross-session compare",
+			desc: "Overlay laps across drivers, sessions and seasons: compound vs compound, year vs year.",
+			live: true,
+		},
+		{
+			title: "Race analysis",
+			desc: "Lap-by-lap pace for the whole field, broken down by tyre stint.",
+			live: false,
 		},
 	] as const;
 </script>
 
+<svelte:head>
+	<link rel="preload" as="image" href="/dashboard_preview.png" />
+</svelte:head>
+
 <SEO route="home" />
 
-<main
-	class="mx-auto flex w-full max-w-7xl flex-1 flex-col items-center gap-12 md:gap-18 px-4 md:px-8 py-12 md:py-24 text-center"
->
-	<!-- Hero -->
-	<section
-		class="flex min-h-[50vh] md:min-h-[60vh] flex-col items-center justify-center gap-6 md:gap-8 mt-10"
-	>
-		<div class="flex flex-col items-center gap-4 select-none">
-			<h1
-				class="max-w-4xl text-5xl font-black tracking-tighter text-foreground md:text-8xl"
-			>
-				Full<span class="text-primary">Throttle</span>
-			</h1>
-			<p class="text-md font-mono text-muted-foreground uppercase">
-				<span>F1 Telemetry</span>
-				<span class="text-primary">in the browser</span>
-			</p>
-		</div>
-
-		<p class="max-w-2xl text-xl leading-relaxed text-muted-foreground">
-			<span class="font-bold text-foreground">Free and open-source</span>
-			F1 telemetry charts and session replays. <br />
-			Telemetry data sourced from
-			<span class="text-foreground"
-				><a
-					href="https://github.com/theOehrly/Fast-F1"
-					class="hover:underline"
+<main class="flex w-full flex-1 flex-col">
+	<!-- ─── Hero ─────────────────────────────────────────────────────────── -->
+	<section class="relative overflow-hidden">
+		<div class="hero-glow" aria-hidden="true"></div>
+		<div
+			class="relative mx-auto grid max-w-6xl gap-x-12 gap-y-5 px-4 pt-8 sm:px-6 sm:pt-12 lg:grid-cols-[auto_1fr] lg:items-end"
+		>
+			<div>
+				<a
+					href={SITE_CONFIG.author.url}
 					target="_blank"
-					aria-label="FastF1">FastF1</a
-				></span
-			>
-		</p>
-
-		<div
-			class="mt-4 flex w-full flex-col md:flex-row items-center justify-center gap-4 md:gap-6 md:w-auto"
-		>
-			<Button
-				href="/telemetry"
-				class="w-full md:w-auto border border-primary bg-primary px-10 py-7 text-sm font-black text-primary-foreground uppercase transition-all duration-200 hover:bg-transparent hover:text-primary"
-			>
-				Telemetry
-			</Button>
-			<Button
-				variant="outline"
-				onclick={() => {
-					posthog.capture("session_replay", { scroll: true });
-					const el = document.getElementById("session-picker");
-					if (el) {
-						el.scrollIntoView({ behavior: "smooth" });
-					}
-				}}
-				class="w-full md:w-auto border-border bg-transparent px-10 py-7 text-sm font-bold tracking-widest text-foreground uppercase hover:bg-muted"
-			>
-				Session Replay
-			</Button>
-		</div>
-
-		<!-- Latest session quick-jump -->
-		{#if latestReplayUrl && latestLabel}
-			<a
-				href={latestReplayUrl}
-				class="group flex items-center gap-3 rounded-xl border border-divider/60 bg-surface-raised/40 px-4 py-3 text-left transition-all hover:border-divider hover:bg-surface-raised"
-			>
-				<div
-					class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
+					rel="noreferrer"
+					class="group inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
 				>
-					<!-- play icon -->
-					<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"
-						><polygon points="5 3 19 12 5 21 5 3" /></svg
+					Built by
+					<span class="font-medium text-foreground group-hover:text-primary"
+						>{SITE_CONFIG.author.name}</span
 					>
-				</div>
-				<div class="min-w-0">
-					<div
-						class="font-mono text-[9px] font-bold tracking-widest text-on-surface-subtle uppercase"
-					>
-						Latest session
-					</div>
-					<div
-						class="truncate text-sm font-bold text-on-surface transition-colors group-hover:text-primary"
-					>
-						{latestLabel}
-					</div>
-				</div>
-				<svg
-					class="ml-auto shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-					width="14"
-					height="14"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"><path d="m9 18 6-6-6-6" /></svg
+					<ArrowUpRight size={14} />
+				</a>
+				<h1
+					class="mt-3 text-[3.5rem] leading-[0.9] font-extrabold tracking-[-0.045em] text-foreground select-none sm:text-[5rem] lg:text-[6rem]"
 				>
-			</a>
-		{/if}
-
-		<p class="font-mono text-xs tracking-wider text-muted-foreground lowercase">
-			built by
-			<a
-				href="https://github.com/chiroyce1"
-				target="_blank"
-				class="text-foreground hover:underline">chiroyce</a
-			>
-		</p>
-	</section>
-
-	<!-- Product screenshot -->
-	<section class="w-full -mt-2">
-		<a
-			href="/telemetry"
-			aria-label="Open telemetry dashboard"
-			class="group relative block w-full overflow-hidden rounded-xl border border-divider/40 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.12)] dark:shadow-[0_0_60px_-10px_rgba(225,6,0,0.25)] transition-shadow duration-300 hover:shadow-[0_6px_32px_-4px_rgba(0,0,0,0.18)] dark:hover:shadow-[0_0_80px_-8px_rgba(225,6,0,0.4)]"
-		>
-			<img
-				src="/dashboard_preview.png"
-				alt="FullThrottle telemetry dashboard — speed traces, corner speeds, and track map"
-				class="w-full object-cover"
-				loading="eager"
-			/>
-			<!-- Hover CTA pill -->
-			<div
-				class="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-			>
-				<span
-					class="rounded-full border border-primary/50 bg-background/80 px-5 py-2.5 font-mono text-xs font-black tracking-widest text-primary uppercase backdrop-blur-sm"
-				>
-					Open Dashboard →
-				</span>
+					Full<span class="text-primary">Throttle</span>
+				</h1>
 			</div>
-		</a>
-	</section>
 
-	<Separator class="opacity-10" />
-
-	<section class="w-full mb-18">
-		<SessionPicker years={data.years} />
-	</section>
-
-	<Separator class="opacity-10" />
-
-	<!-- Feature grid -->
-	<section class="w-full">
-		<div class="mb-12 flex flex-col items-center gap-3">
-			<h2 class="text-4xl font-black tracking-tighter text-primary uppercase">
-				Features
-			</h2>
-			<p class="text-md text-on-surface-muted">
-				Live features and future roadmap
-			</p>
-		</div>
-		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-			{#each features as f}
-				<div
-					class="group rounded-xl border border-border/30 bg-surface-raised p-8 text-left transition-colors hover:bg-surface-overlay"
-				>
-					{#if f.tag == "LIVE"}
-						<div class="mb-3 flex items-center gap-2">
-							<span class="text-md font-mono font-bold text-primary uppercase">
-								LIVE
-							</span>
-						</div>
-					{:else}
-						<div class="flex items-center gap-2">
-							<span
-								class="text-md font-mono font-bold text-on-surface-subtle uppercase"
-							>
-								<span class="text-2xl">◌</span> COMING SOON
-							</span>
-						</div>
+			<div class="flex flex-col gap-4 lg:pb-1.5">
+				<p class="max-w-md text-lg text-muted-foreground">
+					F1 telemetry and session replays in your browser. Compare any two
+					laps, or rewatch a race with live timing.
+				</p>
+				<div class="flex flex-wrap items-center gap-2">
+					<Button href="/telemetry" size="lg">
+						Open telemetry
+						<ArrowRight size={16} />
+					</Button>
+					{#if latestReplayUrl && latestLabel}
+						<Button href={latestReplayUrl} size="lg" variant="secondary">
+							<Play size={14} weight="fill" />
+							<span class="max-w-[16rem] truncate">Replay {latestLabel}</span>
+						</Button>
 					{/if}
-
-					<div
-						class="text-xl font-black tracking-tight text-on-surface uppercase"
-					>
-						{f.title}
-					</div>
-					<p class="mt-2 text-sm leading-relaxed text-on-surface-muted">
-						{f.desc}
-					</p>
 				</div>
-			{/each}
+			</div>
+		</div>
+
+		<!-- Product shot -->
+		<div class="relative mx-auto mt-8 max-w-6xl px-4 sm:px-6">
+			<a
+				href="/telemetry"
+				class="product-shot group block overflow-hidden rounded-xl border border-border-strong bg-card p-1.5"
+				aria-label="Open the telemetry dashboard"
+			>
+				<img
+					src="/dashboard_preview.png"
+					alt="FullThrottle telemetry: speed and throttle traces for two drivers, corner speeds and a track map"
+					class="block aspect-[16/9] w-full rounded-md object-cover object-top"
+					loading="eager"
+				/>
+			</a>
 		</div>
 	</section>
 
-	<Separator class="opacity-10" />
+	<!-- ─── Replay ───────────────────────────────────────────────────────── -->
+	<section id="replay" class="scroll-mt-16 border-t border-border py-12 sm:py-14">
+		<div class="mx-auto max-w-6xl px-4 sm:px-6" use:reveal>
+			<div class="mb-6 flex flex-col gap-2">
+				<p class="flex items-center gap-3">
+					<span class="section-index">01</span>
+					<span class="eyebrow">Session replay</span>
+				</p>
+				<h2 class="display text-display-sm text-foreground sm:text-display-md">
+					Replay any session
+				</h2>
+				<p class="max-w-lg text-muted-foreground">
+					Every race, qualifying and practice session since 2025 with a live
+					leaderboard, sector times and the whole field on the track map.
+				</p>
+			</div>
 
-	<!-- Stack -->
-	<section class="w-full">
-		<h1
-			class="mb-12 text-4xl font-black tracking-tighter text-primary uppercase"
-		>
-			Built using
-		</h1>
-		<div
-			class="mx-auto grid w-full max-w-2xl grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-12"
-		>
-			{#each stack as s}
-				<div class="flex flex-col items-center gap-2">
-					<span class="text-2xl font-bold text-on-surface">
-						<a
-							href={s.href}
-							target="_blank"
-							class="transition-all duration-100 hover:scale-105 hover:underline"
-							>{s.label}</a
+			<SessionPicker years={data.years} />
+		</div>
+	</section>
+
+	<!-- ─── Features ─────────────────────────────────────────────────────── -->
+	<section class="border-t border-border py-12 sm:py-14">
+		<div class="mx-auto max-w-6xl px-4 sm:px-6">
+			<div class="mb-6 flex flex-col gap-2" use:reveal>
+				<p class="flex items-center gap-3">
+					<span class="section-index">02</span>
+					<span class="eyebrow">Features</span>
+				</p>
+				<h2 class="display text-display-sm text-foreground sm:text-display-md">
+					In-depth analysis
+				</h2>
+			</div>
+
+			<ol class="grid border-t border-border md:grid-cols-2">
+				{#each features as f, i (f.title)}
+					<li
+						class="flex gap-5 border-b border-border py-4 md:odd:border-r md:odd:pr-8 md:even:pl-8"
+						use:reveal={(i % 2) * 80 + Math.floor(i / 2) * 60}
+					>
+						<span class="pt-0.5 font-mono text-xs text-muted-foreground tabular-nums"
+							>{String(i + 1).padStart(2, "0")}</span
 						>
-					</span>
-					<span class="text-xl text-on-surface-muted">{s.sub}</span>
-				</div>
-			{/each}
+						<div class="flex-1">
+							<div class="flex items-center gap-2">
+								<h3 class="text-base font-medium text-foreground">{f.title}</h3>
+								{#if !f.live}
+									<Badge variant="neutral">Coming soon</Badge>
+								{/if}
+							</div>
+							<p class="mt-1 text-muted-foreground">{f.desc}</p>
+						</div>
+					</li>
+				{/each}
+			</ol>
 		</div>
 	</section>
 </main>
+
+<style>
+	/* Soft brand-tinted glow behind the hero — the one decorative use of red */
+	.hero-glow {
+		position: absolute;
+		inset: -40% -10% auto;
+		height: 120%;
+		background: radial-gradient(
+			ellipse 50% 40% at 70% 35%,
+			color-mix(in srgb, var(--primary) 10%, transparent),
+			transparent 70%
+		);
+		pointer-events: none;
+	}
+
+	.product-shot {
+		box-shadow:
+			0 0 0 1px color-mix(in srgb, var(--foreground) 3%, transparent),
+			0 30px 80px -20px rgb(0 0 0 / 0.5);
+		mask-image: linear-gradient(to bottom, black 85%, transparent);
+		transition: border-color 0.2s ease;
+	}
+	.product-shot:hover {
+		border-color: color-mix(in srgb, var(--foreground) 20%, transparent);
+	}
+	:global(:root:not(.dark)) .product-shot {
+		box-shadow: 0 30px 80px -30px rgb(0 0 0 / 0.18);
+	}
+</style>

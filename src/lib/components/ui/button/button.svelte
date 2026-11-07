@@ -11,17 +11,18 @@
 				destructive:
 					'bg-destructive hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60 text-white shadow-xs',
 				outline:
-					'bg-background hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 border shadow-xs',
-				secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-xs',
-				ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
-				link: 'text-primary underline-offset-4 hover:underline'
+					'border border-border-strong bg-transparent text-foreground hover:bg-accent',
+				secondary:
+					'border border-border bg-secondary text-secondary-foreground hover:bg-accent shadow-xs',
+				ghost: 'text-muted-foreground hover:bg-accent hover:text-foreground',
+				link: 'text-foreground underline-offset-4 hover:underline'
 			},
 			size: {
-				default: 'h-9 px-4 py-2 has-[>svg]:px-3',
-				sm: 'h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5',
-				lg: 'h-10 rounded-md px-6 has-[>svg]:px-4',
-				icon: 'size-9',
-				'icon-sm': 'size-8',
+				default: 'h-8 px-3 has-[>svg]:px-2.5',
+				sm: 'h-7 gap-1.5 px-2.5 text-xs has-[>svg]:px-2',
+				lg: 'h-10 px-5 text-base has-[>svg]:px-4',
+				icon: 'size-8',
+				'icon-sm': 'size-7',
 				'icon-lg': 'size-10'
 			}
 		},

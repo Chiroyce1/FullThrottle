@@ -35,3 +35,13 @@ data_hidden/
 docs/
 # Local-only planning notes (never publish)
 TODO.md
+
+# Playwright
+/test-results
+/playwright-report
+
+# Video (local only)
+/video
+
+# Screenshot baselines (local only, they match one machine's fonts)
+/tests/visual

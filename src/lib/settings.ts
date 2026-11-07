@@ -10,6 +10,8 @@
  *   settings.licoThrottleSensitivity = 10;                // write + persist
  */
 
+import { LICO_THROTTLE_THRESHOLD } from "$lib/constants";
+
 const KEY = "ft_settings";
 
 export interface AppSettingsValues {
@@ -37,10 +39,10 @@ const DEFAULTS: AppSettingsValues = {
 	throttleInterpolation: true,
 	brakeInterpolation: true,
 	dataFrequency: 8,
-	licoThrottleSensitivity: 15,
+	licoThrottleSensitivity: LICO_THROTTLE_THRESHOLD,
 };
 
-export const LICO_SENSITIVITY_OPTIONS = [3, 5, 10, 15, 30, 50] as const;
+export const LICO_SENSITIVITY_OPTIONS = [3, 5, 10, 15, 20, 30, 50] as const;
 export type LicoSensitivity = (typeof LICO_SENSITIVITY_OPTIONS)[number];
 
 class Settings {

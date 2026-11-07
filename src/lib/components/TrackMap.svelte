@@ -2,6 +2,7 @@
 	import * as d3 from "d3";
 	import { untrack } from "svelte";
 	import type { TrackCorner } from "$lib/track-corners";
+	import { cornerKey } from "$lib/telemetry/corners";
 
 	// ─── Constants ────────────────────────────────────────────────────────
 	const MARGIN = 16; // Canvas padding in pixels.
@@ -21,7 +22,6 @@
 	const CORNER_LABEL_PADDING_Y = 1.5; // Vertical padding around corner text.
 	const CORNER_LABEL_RADIUS_PX = 2; // Corner label background radius.
 	const CORNER_OFFSET_PX = TRACK_STROKE_WIDTH / 2 + 7; // Corner label offset from track centerline.
-	const CORNER_TANGENT_NUDGE_PX = 4; // Small along-track nudge to reduce overlaps.
 
 	export interface DriverDot {
 		id: string;
@@ -43,7 +43,6 @@
 		speedDeltaMode = false,
 		speedDeltaSegments = [],
 		rotation = $bindable(0),
-		showRotationGUI = true,
 		showLabels = true,
 		corners = [],
 		activeCorner = null,
@@ -54,11 +53,10 @@
 		activeDots: DriverDot[];
 		speedDeltaMode?: boolean;
 		speedDeltaSegments?: SpeedDeltaSegment[];
-		showRotationGUI?: boolean;
 		rotation?: number;
 		showLabels?: boolean;
 		corners?: TrackCorner[];
-		activeCorner?: number | null;
+		activeCorner?: string | null;
 		onSelectCorner?: (corner: TrackCorner) => void;
 		onHoverCorner?: (corner: TrackCorner | null) => void;
 	}>();
@@ -89,22 +87,19 @@
 	let svgWidth = 0;
 	let svgHeight = 0;
 
+	/**
+	 * Label position for a corner. FastF1's `angle` is the direction from the
+	 * corner to where its label belongs (track coordinates, y up), which
+	 * keeps labels off the racing line and on the outside of the bend.
+	 */
 	function cornerMarkerPosition(corner: TrackCorner): { x: number; y: number } {
 		if (!xScale || !yScale) return { x: 0, y: 0 };
-		const baseX = xScale(corner.x);
-		const baseY = yScale(corner.y);
-		const angleRad = ((corner.angle ?? 0) * Math.PI) / 180;
-		const side = Math.sin((corner.distance ?? 0) / 180) >= 0 ? 1 : -1;
-		const normalRad = -angleRad + (side * Math.PI) / 2;
-		const tangentRad = -angleRad;
-		const zoomComp = currentZoom === 0 ? 1 : 1 / currentZoom;
-		const dx =
-			Math.cos(normalRad) * CORNER_OFFSET_PX * zoomComp +
-			Math.cos(tangentRad) * CORNER_TANGENT_NUDGE_PX * zoomComp;
-		const dy =
-			Math.sin(normalRad) * CORNER_OFFSET_PX * zoomComp +
-			Math.sin(tangentRad) * CORNER_TANGENT_NUDGE_PX * zoomComp;
-		return { x: baseX + dx, y: baseY + dy };
+		const rad = ((corner.angle ?? 0) * Math.PI) / 180;
+		const off = CORNER_OFFSET_PX * (currentZoom === 0 ? 1 : 1 / currentZoom);
+		return {
+			x: xScale(corner.x) + Math.cos(rad) * off,
+			y: yScale(corner.y) - Math.sin(rad) * off,
+		};
 	}
 
 	// EFFECT 1: Draw the static track SVG when trackPath mounts or container dimensions change
@@ -237,7 +232,7 @@
 				.append("path")
 				.datum(trackPath)
 				.attr("fill", "none")
-				.attr("stroke", "var(--divider)") // adapts to theme
+				.attr("stroke", "var(--border)") // adapts to theme
 				.attr("stroke-width", TRACK_STROKE_WIDTH)
 				.attr("stroke-linejoin", "round")
 				.attr("stroke-linecap", "round")
@@ -356,7 +351,7 @@
 						g.append("text")
 							.attr("y", TEXT_Y_OFFSET)
 							.attr("text-anchor", "middle")
-							.attr("fill", "var(--on-surface)")
+							.attr("fill", "var(--foreground)")
 							.attr("font-size", TEXT_FONT_SIZE)
 							.attr("font-family", "monospace")
 							.attr("font-weight", "bold")
@@ -384,7 +379,7 @@
 								.append("text")
 								.attr("y", TEXT_Y_OFFSET)
 								.attr("text-anchor", "middle")
-								.attr("fill", "var(--on-surface)")
+								.attr("fill", "var(--foreground)")
 								.attr("font-size", TEXT_FONT_SIZE)
 								.attr("font-family", "monospace")
 								.attr("font-weight", "bold")
@@ -422,7 +417,7 @@
 
 		cornersGroup
 			.selectAll<SVGGElement, TrackCorner>("g.corner-marker")
-			.data(corners, (d: TrackCorner) => d.number)
+			.data(corners, (d: TrackCorner) => cornerKey(d))
 			.join(
 				(enter) => {
 					const g = enter
@@ -442,8 +437,8 @@
 
 					g.append("rect")
 						.attr("class", "corner-label-bg")
-						.attr("fill", "var(--surface-raised)")
-						.attr("stroke", "var(--divider)")
+						.attr("fill", "var(--card)")
+						.attr("stroke", "var(--border)")
 						.attr("stroke-width", 0.75)
 						.attr("rx", CORNER_LABEL_RADIUS_PX)
 						.attr("ry", CORNER_LABEL_RADIUS_PX);
@@ -452,12 +447,12 @@
 						.attr("class", "corner-label-text")
 						.attr("text-anchor", "middle")
 						.attr("dominant-baseline", "central")
-						.attr("fill", "var(--on-surface)")
+						.attr("fill", "var(--foreground)")
 						.attr("font-size", CORNER_FONT_SIZE)
 						.attr("font-family", "monospace")
 						.attr("font-weight", "bold")
 						.text((d: TrackCorner) =>
-							d.letter ? `${d.number}${d.letter}` : `${d.number}`,
+							cornerKey(d),
 						);
 
 					g.each(function () {
@@ -495,7 +490,7 @@
 					update
 						.select<SVGTextElement>("text.corner-label-text")
 						.text((d: TrackCorner) =>
-							d.letter ? `${d.number}${d.letter}` : `${d.number}`,
+							cornerKey(d),
 						);
 
 					update.each(function () {
@@ -531,15 +526,15 @@
 			.selectAll<SVGGElement, TrackCorner>("g.corner-marker")
 			.each(function (d) {
 				const group = d3.select(this);
-				const isActive = d.number === curActive;
+				const isActive = cornerKey(d) === curActive;
 				group
 					.select<SVGRectElement>("rect.corner-label-bg")
-					.attr("fill", isActive ? "var(--surface-overlay)" : "var(--surface-raised)")
-					.attr("stroke", isActive ? "var(--color-primary, #e10600)" : "var(--divider)")
+					.attr("fill", isActive ? "var(--accent)" : "var(--card)")
+					.attr("stroke", isActive ? "var(--color-primary, #e10600)" : "var(--border)")
 					.attr("stroke-width", isActive ? 1.5 : 0.75);
 				group
 					.select<SVGTextElement>("text.corner-label-text")
-					.attr("fill", isActive ? "var(--foreground)" : "var(--on-surface)");
+					.attr("fill", isActive ? "var(--foreground)" : "var(--foreground)");
 
 				const pos = cornerMarkerPosition(d);
 				const s = isActive ? scaleFactor * 1.25 : scaleFactor;
@@ -578,28 +573,6 @@
 <div
 	class="relative flex h-full w-full items-center justify-center overflow-hidden"
 >
-	{#if showRotationGUI}
-		<!-- Rotation Control Overlay -->
-		<div
-			class="absolute right-4 bottom-4 z-20 flex flex-col items-center gap-2 rounded-lg border border-divider bg-surface/80 p-3 backdrop-blur-md"
-		>
-			<span
-				class="font-mono text-[9px] font-bold tracking-widest text-on-surface-subtle uppercase"
-				>Rotation</span
-			>
-			<input
-				type="range"
-				min="0"
-				max="360"
-				step="1"
-				bind:value={rotation}
-				class="h-1.5 w-32 cursor-pointer appearance-none rounded-full bg-surface-overlay accent-foreground"
-			/>
-			<span class="w-8 text-center font-mono text-[10px] text-on-surface"
-				>{rotation}°</span
-			>
-		</div>
-	{/if}
 
 	<!-- The core map container entirely driven by D3 now -->
 	<div

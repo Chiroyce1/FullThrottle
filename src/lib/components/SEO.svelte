@@ -121,8 +121,8 @@
 	<meta property="og:title" content={computedTitle} />
 	<meta property="og:description" content={computedDescription} />
 	<meta property="og:image" content={ogImage} />
-	<meta property="og:image:width" content="1566" />
-	<meta property="og:image:height" content="994" />
+	<meta property="og:image:width" content="2400" />
+	<meta property="og:image:height" content="1260" />
 	<meta property="og:image:alt" content={ogImageAlt} />
 
 	<!-- Twitter / X Cards -->

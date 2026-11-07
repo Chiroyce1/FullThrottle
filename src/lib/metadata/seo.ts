@@ -7,7 +7,7 @@ export const SITE_CONFIG = {
 	defaultTitle: "FullThrottle — F1 Telemetry, Lap Analysis & Session Replays",
 	defaultDescription:
 		"Free and open-source Formula 1 telemetry charts, head-to-head lap comparisons, and interactive session replays in your browser.",
-	ogImage: "https://fullthrottle.chiroyce.dev/dashboard.png",
+	ogImage: "https://fullthrottle.chiroyce.dev/og.png",
 	ogImageAlt: "FullThrottle F1 Telemetry & Replay Dashboard",
 
 	author: {

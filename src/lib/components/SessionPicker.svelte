@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
-	import SearchableSelect from "$lib/components/SearchableSelect.svelte";
+	import SessionSelects from "$lib/components/SessionSelects.svelte";
 	import { Button } from "$lib/components/ui/button";
-	import { Card, CardContent } from "$lib/components/ui/card";
-	import CardHeader from "./ui/card/card-header.svelte";
 	import type {
 		YearEntry,
 		RoundEntry,
@@ -93,118 +91,63 @@
 		}
 	}
 
-	const selectedYearLabel = $derived(selectedYear || "Year");
-	const selectedRoundLabel = $derived(activeRoundData?.name || "Select Round");
-	const selectedSessionLabel = $derived(
-		activeRoundData?.sessions.find(
-			(s: SessionEntry) => s.code === selectedSession,
-		)?.label || "Session",
-	);
-
-	const yearOptions = $derived(
-		years.map((y: YearEntry) => ({
-			value: y.year.toString(),
-			label: y.year.toString(),
-		})),
-	);
-	const roundOptions = $derived(
+	// Most recent rounds of the selected season, for one-click picking
+	const recentRounds = $derived(
 		[...(activeYearData?.rounds || [])]
 			.sort((a: RoundEntry, b: RoundEntry) => b.round - a.round)
-			.map((r: RoundEntry) => ({
-				value: r.round.toString(),
-				label: r.name,
-				keywords: `${r.name || ""} ${r.location || ""} ${r.country || ""} ${r.circuit || ""}`,
-				rightLabel: (r.location || r.country || "").toUpperCase(),
-			})),
+			.slice(0, 4),
 	);
-	const sessionOptions = $derived(
-		(activeRoundData?.sessions || []).map((s: SessionEntry) => ({
-			value: s.code,
-			label: s.label,
-			keywords: s.code,
-		})),
-	);
+
 </script>
 
-<div class="w-full scroll-mt-[100px]" id="session-picker">
-	<Card
-		class="mx-auto max-w-3xl overflow-hidden rounded-xl border border-divider bg-surface shadow-xl py-18"
-	>
-		<CardHeader>
-			<div class="mt-4 flex flex-col items-center text-center">
-				<h2
-					class="mb-2 text-2xl font-black tracking-tighter text-on-surface uppercase md:text-4xl"
-				>
-					Session <span class="text-primary">replay</span>
-				</h2>
-				<p
-					class="font-mono text-xs font-bold tracking-wide text-on-surface-muted uppercase"
-				>
-					Full replay with driver telemetry and track map for any session
-				</p>
-			</div>
-		</CardHeader>
-		<CardContent class="p-5 md:p-6">
-			<div class="grid grid-cols-1 items-end gap-3 md:grid-cols-4 md:gap-4">
-				<div class="flex flex-col gap-2">
-					<SearchableSelect
-						bind:value={selectedYear}
-						options={yearOptions}
-						placeholder={selectedYearLabel}
-						searchPlaceholder="Search year..."
-						triggerClass="h-10 w-full rounded-md border-divider bg-surface-raised text-on-surface transition-all hover:border-red-600/50 focus:ring-1 focus:ring-red-600"
-						contentClass="rounded-md border-divider bg-surface"
-					/>
-				</div>
+<div class="panel w-full" id="session-picker">
+	<div class="grid grid-cols-1 items-end gap-3 p-4 sm:p-5 md:grid-cols-[10rem_1fr_12rem_auto]">
+		<SessionSelects
+			{years}
+			year={selectedYear}
+			round={selectedRound}
+			session={selectedSession}
+			onyear={(v) => (selectedYear = v)}
+			onround={(v) => (selectedRound = v)}
+			onsession={(v) => (selectedSession = v)}
+			labelled
+			size="md"
+			class="contents"
+		/>
 
-				<div class="flex flex-col gap-2 md:col-span-2">
-					<SearchableSelect
-						bind:value={selectedRound}
-						options={roundOptions}
-						placeholder={selectedRoundLabel}
-						searchPlaceholder="Search round..."
-						triggerClass="h-10 w-full rounded-md border-divider bg-surface-raised text-on-surface transition-all hover:border-red-600/50 focus:ring-1 focus:ring-red-600"
-						contentClass="max-h-80 rounded-md border-divider bg-surface"
-						listClass="max-h-80"
-					/>
-				</div>
+		<Button onclick={handleNavigate} disabled={!selectedSession} class="h-9 px-4">
+			Launch replay
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				width="14"
+				height="14"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg
+			>
+		</Button>
+	</div>
 
-				<div class="flex flex-col gap-2">
-					<SearchableSelect
-						bind:value={selectedSession}
-						options={sessionOptions}
-						placeholder={selectedSessionLabel}
-						searchPlaceholder="Search session..."
-						triggerClass="h-10 w-full rounded-md border-divider bg-surface-raised text-on-surface transition-all hover:border-red-600/50 focus:ring-1 focus:ring-red-600"
-						contentClass="rounded-md border-divider bg-surface"
-					/>
-				</div>
-			</div>
-
-			<div class="mt-5 flex justify-center">
-				<Button
-					onclick={handleNavigate}
-					disabled={!selectedSession}
-					class="group relative h-10 border border-primary bg-primary px-4 text-xs font-black tracking-wide text-primary-foreground uppercase transition-all duration-200 hover:bg-transparent hover:text-primary"
+	{#if recentRounds.length > 0}
+		<div
+			class="flex flex-wrap items-center gap-1.5 border-t border-border px-4 py-3 sm:px-5"
+		>
+			<span class="mr-1 text-xs text-muted-foreground">Recent</span>
+			{#each recentRounds as r (r.round)}
+				{@const active = r.round.toString() === selectedRound}
+				<button
+					type="button"
+					class="rounded-full border px-2.5 py-1 text-xs transition-colors {active
+						? 'border-transparent bg-primary-subtle text-primary'
+						: 'border-border text-muted-foreground hover:border-border-strong hover:text-foreground'}"
+					onclick={() => (selectedRound = r.round.toString())}
 				>
-					<div class="relative z-10 flex items-center gap-3">
-						<span class="text-xs">Launch Replay</span>
-						<svg
-							xmlns="http://www.w3.org/2000/svg"
-							width="14"
-							height="14"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2.5"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							class="transition-transform group-hover:translate-x-1"
-							><path d="m9 18 6-6-6-6" /></svg
-						>
-					</div>
-				</Button>
-			</div>
-		</CardContent>
-	</Card>
+					{r.name}
+				</button>
+			{/each}
+		</div>
+	{/if}
 </div>

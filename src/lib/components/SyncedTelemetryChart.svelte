@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as d3 from "d3";
   import type { TelemetryRow } from "$lib/types";
-  import type { TrackCorner } from "$lib/track-corners";
+  import type { Corner } from "$lib/telemetry/corners";
   import { mode } from "mode-watcher";
 
   export interface ChartHighlight {
@@ -26,9 +26,8 @@
   }
 
   export interface CornerApexMarker {
-    corner: number;
-    letter: string;
-    label: string;
+    /** Corner key ("9A"), matches `activeCorner`. */
+    key: string;
     drivers: CornerApexDriver[];
   }
 
@@ -44,6 +43,7 @@
     highlights = [],
     highlightOpacity = 0.15,
     height = 120,
+    fill = false,
     unit = "",
     yDomain: customYDomain,
     yTicks,
@@ -52,6 +52,9 @@
     apexMarkers = [],
     activeCorner = null,
     isLast = false,
+    showLegend = true,
+    showCornerLabels = true,
+    compact = false,
   } = $props<{
     series: ChartSeries[];
     yAccessor: (d: TelemetryRow) => number;
@@ -64,22 +67,35 @@
     highlights?: ChartHighlight[];
     highlightOpacity?: number;
     height?: number;
+    /** Take the height of the parent box instead of `height`. */
+    fill?: boolean;
     unit?: string;
     yDomain?: [number, number];
     yTicks?: number[];
     lockYAxis?: boolean;
-    corners?: TrackCorner[];
+    corners?: Corner[];
     apexMarkers?: CornerApexMarker[];
-    activeCorner?: number | null;
+    activeCorner?: string | null;
     isLast?: boolean;
+    showLegend?: boolean;
+    showCornerLabels?: boolean;
+    /** Tighter label row and padding, for a short panel. */
+    compact?: boolean;
   }>();
 
   let width = $state(320);
-  const margin = { top: 10, right: 16, bottom: 20, left: 45 };
+  // Fill mode: the plot area's measured height. The SVG is absolutely
+  // placed inside it, so it can never push its own box bigger.
+  let plotHeight = $state(0);
+  const svgHeight = $derived(fill ? plotHeight : height);
+  // Stacked charts share one distance axis: when filling, only the last
+  // chart draws its labels and the others get the space back.
+  const showXAxis = $derived(!fill || isLast);
+  const margin = $derived({ top: 10, right: 16, bottom: showXAxis ? 20 : 4, left: 45 });
 
   const innerWidth = $derived(Math.max(0, width - margin.left - margin.right));
   const innerHeight = $derived(
-    Math.max(0, height - margin.top - margin.bottom),
+    Math.max(0, svgHeight - margin.top - margin.bottom),
   );
 
   // ─── X domain ─────────────────────────────────────────────────────────
@@ -326,21 +342,40 @@
 
   const clipId = `clip-${Math.random().toString(36).slice(2, 7)}`;
 
+  // As many y labels as fit: one per ~22px of plot, between 2 and 5.
+  // A plot too short for two gets just its top label.
   const yGridTicks = $derived.by(() => {
     const [yMin, yMax] = yScale.domain();
+    const fits = Math.max(2, Math.min(5, Math.floor(innerHeight / 22)));
+    let ticks: number[];
     if (yTicks && yTicks.length > 0) {
-      return yTicks.filter((tick: number) => tick >= yMin && tick <= yMax);
+      const inRange = yTicks.filter((tick: number) => tick >= yMin && tick <= yMax);
+      const step = Math.ceil(inRange.length / fits);
+      ticks = inRange.filter((_: number, i: number) => i % step === 0);
+    } else {
+      ticks = yScale.ticks(fits);
     }
-    return yScale.ticks(4);
+    return innerHeight < 44 ? ticks.slice(-1) : ticks;
   });
 
-  const visibleCorners = $derived.by(() =>
-    corners
-      .map((c: TrackCorner) => ({ ...c, px: xScale(c.distance) }))
+  // Minimum horizontal gap (px) between corner number labels; closer
+  // labels are hidden (the dashed corner line still shows).
+  const CORNER_LABEL_MIN_GAP = 16;
+
+  const visibleCorners = $derived.by(() => {
+    let lastLabelPx = -Infinity;
+    return corners
+      .map((c: Corner) => ({ ...c, px: xScale(c.distance) }))
       .filter(
-        (c: TrackCorner & { px: number }) => c.px >= 0 && c.px <= innerWidth,
-      ),
-  );
+        (c: Corner & { px: number }) => c.px >= 0 && c.px <= innerWidth,
+      )
+      .sort((a: { px: number }, b: { px: number }) => a.px - b.px)
+      .map((c: Corner & { px: number }) => {
+        const showLabel = c.px - lastLabelPx >= CORNER_LABEL_MIN_GAP;
+        if (showLabel) lastLabelPx = c.px;
+        return { ...c, showLabel };
+      });
+  });
 
   const visibleApexes = $derived.by(() => {
     if (!apexMarkers || apexMarkers.length === 0) return [];
@@ -357,25 +392,46 @@
       }))
       .filter((m: { drivers: (CornerApexDriver & { px: number; py: number })[] }) => m.drivers.length > 0);
   });
+
+  // One label per corner: the fastest minimum speed, under the corner's
+  // lowest dot (above it near the floor). Skipped if it would touch the
+  // previous corner's label, unless the corner is active.
+  const apexLabels = $derived.by(() => {
+    let lastX = -Infinity;
+    const out: { key: string; x: number; y: number; text: string; color: string }[] = [];
+    for (const m of visibleApexes) {
+      const fastest = m.drivers.find((d: { isFastest: boolean }) => d.isFastest) ?? m.drivers[0];
+      const lowest = Math.max(...m.drivers.map((d: { py: number }) => d.py));
+      const x = fastest.px;
+      if (x - lastX < 26 && m.key !== activeCorner) continue;
+      lastX = x;
+      out.push({
+        key: m.key,
+        x,
+        y: lowest > innerHeight - 16 ? Math.min(...m.drivers.map((d: { py: number }) => d.py)) - 8 : lowest + 14,
+        text: String(Math.round(fastest.speed)),
+        color: fastest.color,
+      });
+    }
+    return out;
+  });
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="relative w-full min-w-0 max-w-full overflow-hidden {isLast
     ? ''
-    : 'border-b border-divider/50'} py-2.5 select-none"
+    : 'border-b border-border'} {compact ? 'py-1' : 'py-3'} select-none {fill ? 'flex h-full flex-col' : ''}"
   bind:clientWidth={width}
 >
   <!-- Label + hover readout row -->
-  <div class="mb-1 flex min-w-0 items-center justify-between gap-2 px-2">
+  <div class="{compact ? 'mb-0.5' : 'mb-1.5'} flex min-w-0 items-center justify-between gap-2 px-3">
     <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-      <span
-        class="text-xs font-mono font-bold tracking-wider text-foreground uppercase shrink-0"
-      >
+      <span class="shrink-0 text-xs font-medium text-foreground">
         {label}
-        {#if unit}<span class="text-on-surface-muted"> ({unit})</span>{/if}
+        {#if unit}<span class="ml-0.5 font-normal text-muted-foreground">{unit}</span>{/if}
       </span>
-      {#if series.length > 1}
+      {#if showLegend && series.length > 1}
         <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
           {#each series as s}
             <div class="flex items-center gap-1.5 shrink-0">
@@ -384,7 +440,7 @@
                 style="background-color:{s.color}"
               ></div>
               <span
-                class="font-mono text-[9px] font-bold text-on-surface-muted uppercase"
+                class="font-mono text-2xs text-muted-foreground"
                 >{s.label}</span
               >
             </div>
@@ -397,10 +453,10 @@
       {#each hoverValues as hv}
         {#if hv.value !== null}
           <span
-            class="text-xs font-mono font-bold"
+            class="font-mono text-xs font-medium tabular-nums"
             style={series.length > 1 ? `color:${hv.color}` : ""}
           >
-            {hv.value.toFixed(unit === "n" ? 0 : 1)}
+            {hv.value.toFixed(unit === "n" || label === "Gear" || label === "RPM" ? 0 : 1)}
             {#if series.length === 1}{unit}{/if}
           </span>
         {/if}
@@ -408,13 +464,17 @@
     </div>
   </div>
 
+  <div
+    class={fill ? "relative min-h-0 flex-1" : "contents"}
+    bind:clientHeight={plotHeight}
+  >
   {#if series.some((s: ChartSeries) => s.data.length > 0)}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <svg
       bind:this={svgRef}
       {width}
-      {height}
-      class="block max-w-full overflow-hidden font-mono"
+      height={svgHeight}
+      class="block max-w-full overflow-hidden font-mono {fill ? 'absolute inset-x-0 top-0' : ''}"
       style="cursor: crosshair; touch-action: pan-y;"
       onmousedown={handleMouseDown}
       onmousemove={handleMouseMove}
@@ -449,33 +509,34 @@
               x={h.x + h.w / 2}
               y="10"
               fill={h.color}
-              font-size="8"
-              font-weight="bold"
+              font-size="10"
+              font-weight="600"
               text-anchor="middle"
-              class="tracking-tighter uppercase font-mono"
+              class="font-mono"
               clip-path={`url(#${clipId})`}>{h.label}</text
             >
           {/if}
         {/each}
 
         <!-- Grid lines -->
-        <g stroke-dasharray="2,2">
+        <g>
           {#each yGridTicks as tick}
             <line
               x1="0"
               x2={innerWidth}
               y1={yScale(tick)}
               y2={yScale(tick)}
-              class="stroke-zinc-300 dark:stroke-zinc-800"
+              stroke="var(--border)"
               stroke-width="1"
             />
             <text
               x="-8"
               y={yScale(tick)}
-              font-size="9"
+              font-size="10"
               text-anchor="end"
               alignment-baseline="middle"
-              class="fill-zinc-600 dark:fill-zinc-400 font-mono font-medium"
+              fill="var(--muted-foreground)"
+              class="font-mono tabular-nums"
               >{tick}</text
             >
           {/each}
@@ -502,78 +563,56 @@
             x2={c.px}
             y1="0"
             y2={innerHeight}
-            class="stroke-zinc-400 dark:stroke-zinc-600"
-            stroke-width="0.75"
+            stroke="var(--border-strong)"
+            stroke-width="1"
             stroke-dasharray="2,3"
             clip-path={`url(#${clipId})`}
           />
-          <text
-            x={Math.min(innerWidth - 8, Math.max(8, c.px))}
-            y={-2}
-            font-size="8"
-            font-weight="600"
-            text-anchor="middle"
-            class="fill-zinc-800 dark:fill-zinc-200 select-none font-mono"
-            >{c.letter ? `${c.number}${c.letter}` : c.number}</text
-          >
+          {#if showCornerLabels && c.showLabel}
+            <text
+              x={Math.min(innerWidth - 8, Math.max(8, c.px))}
+              y={-2}
+              font-size="10"
+              font-weight="500"
+              text-anchor="middle"
+              fill="var(--muted-foreground)"
+              class="select-none font-mono"
+              >{c.key}</text
+            >
+          {/if}
         {/each}
 
         <!-- Apex Minimum Speed Markers -->
         {#if visibleApexes.length > 0}
           <g class="apex-markers-layer" clip-path={`url(#${clipId})`}>
             {#each visibleApexes as apex}
-              {@const isCornerActive = activeCorner === apex.corner}
-              {#each apex.drivers as d, dIndex}
-                <g class="transition-all duration-200">
-                  {#if d.isFastest}
-                    <!-- Faster driver halo glow -->
-                    <circle
-                      cx={d.px}
-                      cy={d.py}
-                      r={isCornerActive ? "8" : "5.5"}
-                      fill={d.color}
-                      fill-opacity="0.25"
-                      stroke={d.color}
-                      stroke-width={isCornerActive ? "1.5" : "1"}
-                    />
-                    <!-- Faster driver solid core -->
-                    <circle
-                      cx={d.px}
-                      cy={d.py}
-                      r={isCornerActive ? "4" : "3"}
-                      fill={d.color}
-                      stroke="var(--surface)"
-                      stroke-width="1.5"
-                    />
-                    <!-- Speed callout text (only first fastest if tie to avoid collision) -->
-                    {#if dIndex === 0 || !apex.drivers.slice(0, dIndex).some((prev: typeof d) => prev.isFastest && Math.abs(prev.px - d.px) < 18)}
-                      <text
-                        x={d.px}
-                        y={d.py > innerHeight - 16 ? d.py - 9 : d.py + 13}
-                        font-size={isCornerActive ? "9.5" : "8"}
-                        font-weight="bold"
-                        font-family="monospace"
-                        text-anchor="middle"
-                        fill={d.color}
-                        class="select-none font-mono drop-shadow-xs pointer-events-none"
-                      >
-                        {Math.round(d.speed)}
-                      </text>
-                    {/if}
-                  {:else}
-                    <!-- Slower driver apex dot without text collision -->
-                    <circle
-                      cx={d.px}
-                      cy={d.py}
-                      r={isCornerActive ? "3.5" : "2.5"}
-                      fill={d.color}
-                      stroke="var(--surface)"
-                      stroke-width="1"
-                      opacity={isCornerActive ? "1" : "0.75"}
-                    />
-                  {/if}
-                </g>
+              {@const active = activeCorner === apex.key}
+              {#each apex.drivers as d}
+                <circle
+                  cx={d.px}
+                  cy={d.py}
+                  r={active ? 3.5 : 2.5}
+                  fill={d.color}
+                  stroke="var(--card)"
+                  stroke-width="1.5"
+                />
               {/each}
+            {/each}
+            {#each apexLabels as l (l.key)}
+              <text
+                x={l.x}
+                y={l.y}
+                font-size="10"
+                font-weight={activeCorner === l.key ? 700 : 500}
+                text-anchor="middle"
+                fill={l.color}
+                stroke="var(--card)"
+                stroke-width="3"
+                paint-order="stroke"
+                class="pointer-events-none font-mono tabular-nums select-none"
+              >
+                {l.text}
+              </text>
             {/each}
           </g>
         {/if}
@@ -585,9 +624,9 @@
             x2={playheadX}
             y1="0"
             y2={innerHeight}
-            class="stroke-zinc-800 dark:stroke-zinc-200"
+            stroke="var(--foreground)"
             stroke-width="1"
-            stroke-opacity="0.4"
+            stroke-opacity="0.35"
           />
           {#each hoverValues as hv}
             {#if hv.value !== null}
@@ -616,18 +655,19 @@
         {/if}
 
         <!-- X axis -->
-        <g transform={`translate(0,${innerHeight})`}>
+        <g transform={`translate(0,${innerHeight})`} visibility={showXAxis ? "visible" : "hidden"}>
           {#each xScale.ticks(Math.max(2, Math.floor(innerWidth / 100))) as tick}
             <text
               x={xScale(tick)}
               y="12"
-              font-size="9"
+              font-size="10"
               text-anchor={xScale(tick) > innerWidth - 20
                 ? "end"
                 : xScale(tick) < 20
                   ? "start"
                   : "middle"}
-              class="fill-zinc-600 dark:fill-zinc-400 font-mono font-medium"
+              fill="var(--muted-foreground)"
+              class="font-mono tabular-nums"
             >
               {tick >= 1000 ? (tick / 1000).toFixed(1) + "k" : tick.toFixed(0)}m
             </text>
@@ -637,10 +677,11 @@
     </svg>
   {:else}
     <div
-      style="height:{height}px"
-      class="flex w-full items-center justify-center font-mono text-xs text-on-surface-muted"
+      style="height:{svgHeight}px"
+      class="flex w-full items-center justify-center text-xs text-muted-foreground"
     >
-      No Data
+      No data
     </div>
   {/if}
+  </div>
 </div>

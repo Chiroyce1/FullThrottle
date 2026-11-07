@@ -50,7 +50,7 @@
 		text-anchor="middle"
 		font-size={fs * 1.3}
 		font-weight="800"
-		font-family="IBM Plex Sans, system-ui"
+		font-family="Geist, system-ui"
 		fill={color}>{letter}</text
 	>
 </svg>

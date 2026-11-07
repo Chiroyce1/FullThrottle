@@ -1,79 +1,56 @@
 <script lang="ts">
-	import Separator from "$lib/components/ui/separator/separator.svelte";
 	import SEO from "$lib/components/SEO.svelte";
+
+	const link =
+		"text-foreground underline decoration-border-strong underline-offset-4 hover:decoration-foreground";
 </script>
 
 <SEO route="faq" />
 
-<div class="mx-auto max-w-4xl px-8 py-24">
-	<div>
-		<h1 class="mb-4 text-6xl font-black text-primary uppercase">FAQ</h1>
+{#snippet item(question: string, answer: import("svelte").Snippet)}
+	<div class="grid gap-2 border-t border-border py-6 sm:grid-cols-[16rem_1fr] sm:gap-8">
+		<h2 class="font-medium text-foreground">{question}</h2>
+		<div class="text-muted-foreground">{@render answer()}</div>
 	</div>
+{/snippet}
 
-	<Separator class="my-8" />
+<main class="mx-auto w-full max-w-4xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
+	<p class="eyebrow">Help</p>
+	<h1 class="display mt-2 mb-10 text-display-sm text-foreground sm:text-display-md">FAQ</h1>
 
-	<div class="flex flex-col gap-12">
-		<div class="flex flex-col gap-3">
-			<h3 class="text-xl font-bold text-foreground uppercase">
-				Where does the data come from?
-			</h3>
-			<p class="leading-relaxed text-on-surface-muted">
-				All data is sourced from <strong
-					><a href="https://docs.fastf1.dev/" class="text-foreground underline"
-						>FastF1</a
-					></strong
-				>, which pulls official timing and telemetry data directly from F1's
-				live timing feeds and historical archives.
-			</p>
-		</div>
+	{#snippet data()}
+		All data comes from <a href="https://docs.fastf1.dev/" class={link}>FastF1</a>, which
+		pulls official timing and telemetry from F1's live timing feeds and historical
+		archives.
+	{/snippet}
+	{@render item("Where does the data come from?", data)}
 
-		<div class="flex flex-col gap-3">
-			<h3 class="text-xl font-bold text-foreground uppercase">
-				How do I use the telemetry charts?
-			</h3>
-			<p class="leading-relaxed text-on-surface-muted">
-				Hover over any chart to see the synchronized data across all
-				graphs and the track map. You can <strong>zoom</strong> by
-				clicking and dragging on a section of the chart. Double-click
-				the chart to <strong>reset</strong> the zoom.
-			</p>
-		</div>
+	{#snippet charts()}
+		Hover any chart to see synced values across every chart and the track map. Click and
+		drag to <span class="text-foreground">zoom</span>; double-click to
+		<span class="text-foreground">reset</span>.
+	{/snippet}
+	{@render item("How do I use the telemetry charts?", charts)}
 
-		<div class="flex flex-col gap-3">
-			<h3 class="text-xl font-bold text-foreground uppercase">
-				What is "LiCO"?
-			</h3>
-			<p class="leading-relaxed text-on-surface-muted">
-				<strong>Lift and Coast</strong> is a technique used by drivers to manage
-				battery recharging or tyre temperatures. On our charts, segments where
-				the driver is off the throttle ({"<20%"}) and not braking are
-				highlighted as LiCO events.
-			</p>
-		</div>
+	{#snippet lico()}
+		<span class="text-foreground">Lift and coast</span> is when a driver comes off the
+		throttle before braking, to save fuel or energy or manage tyres. Stretches below the
+		throttle threshold (20% by default, adjustable in
+		<a href="/settings" class={link}>settings</a>) with no braking are highlighted as LiCO.
+	{/snippet}
+	{@render item('What is "LiCO"?', lico)}
 
-		<div class="mt-4 flex flex-col gap-3">
-			<h3 class="text-xl font-bold text-foreground uppercase">
-				Is this official?
-			</h3>
-			<p class="text-sm leading-relaxed text-on-surface-muted italic">
-				No. FullThrottle is a non-commercial project. This platform is not
-				associated with the Formula 1 group of companies, Liberty Media, or
-				Formula One Management. F1, FORMULA ONE, FORMULA 1, FIA FORMULA ONE
-				WORLD CHAMPIONSHIP, GRAND PRIX and related marks are trade marks of
-				Formula One Licensing B.V.
-			</p>
-		</div>
+	{#snippet official()}
+		No. FullThrottle is a non-commercial project, not associated with the Formula 1 group
+		of companies, Liberty Media or Formula One Management. F1, Formula One, Formula 1,
+		FIA Formula One World Championship, Grand Prix and related marks are trade marks of
+		Formula One Licensing B.V.
+	{/snippet}
+	{@render item("Is this official?", official)}
 
-		<div class="mt-4 flex flex-col gap-3">
-			<h3 class="text-xl font-bold text-foreground uppercase">
-				Is this open source?
-			</h3>
-			<p class="text-sm leading-relaxed text-on-surface-muted">
-				Yes, licensed under AGPLv3 <a
-					class="text-primary hover:underline"
-					href="https://github.com/chiroyce1/fullthrottle">here</a
-				>.
-			</p>
-		</div>
-	</div>
-</div>
+	{#snippet oss()}
+		Yes, under AGPLv3. The source is
+		<a href="https://github.com/chiroyce1/fullthrottle" class={link}>on GitHub</a>.
+	{/snippet}
+	{@render item("Is this open source?", oss)}
+</main>
