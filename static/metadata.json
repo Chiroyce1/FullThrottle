@@ -606,6 +606,24 @@
                     "location": "Mexico City",
                     "circuit": "Aut\u00f3dromo Hermanos Rodr\u00edguez",
                     "date": "2026-10-30"
+                },
+                {
+                    "round": 20,
+                    "name": "Brazilian Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "fp2",
+                            "label": "Practice 2"
+                        }
+                    ],
+                    "country": "Brazil",
+                    "location": "S\u00e3o Paulo",
+                    "circuit": "Aut\u00f3dromo Jos\u00e9 Carlos Pace",
+                    "date": "2026-11-06"
                 }
             ]
         },
