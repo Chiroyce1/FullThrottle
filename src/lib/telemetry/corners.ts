@@ -9,6 +9,12 @@
  * recorded between them. Laps are compared on their own minimums, wherever
  * on the corner each one happened.
  *
+ * That lowest sample only counts if speed bottoms out there. If it sits on
+ * the span's edge with speed still rising into it (accelerating out of the
+ * previous corner) or still falling out of it (braking for the next), the
+ * lap didn't slow for this corner: it reads the speed at the corner's own
+ * point instead, so every lap is compared at the same place.
+ *
  * Every threshold below was measured on real 2026 sessions; the tests run
  * against real laps (tests/fixtures/corners) with expected values computed
  * independently in numpy.
@@ -29,7 +35,10 @@ export interface CornerReading {
 	minSpeed: number;
 	/** Chart-frame distance where it was recorded. */
 	apexDist: number;
-	/** Taken without a real slowdown (kink, flat-out sweeper). */
+	/**
+	 * Taken without a real slowdown (kink, flat-out sweeper, or no minimum of
+	 * its own); `minSpeed` is then the speed at the corner's point.
+	 */
 	flat: boolean;
 }
 
@@ -122,6 +131,18 @@ function project(
 	return best;
 }
 
+/** Speed at lap distance `d`, linear between samples. */
+function speedAt(lap: TelemetryRow[], d: number): number {
+	let i = 1;
+	while (i < lap.length - 1 && lap[i].distance < d) i++;
+	const a = lap[i - 1];
+	const b = lap[i];
+	const span = b.distance - a.distance;
+	if (span <= 0) return a.speed;
+	const t = Math.min(1, Math.max(0, (d - a.distance) / span));
+	return a.speed + t * (b.speed - a.speed);
+}
+
 function measure(c: TrackCorner, lap: TelemetryRow[], frozen: boolean[]): CornerReading | null {
 	if (!c.entry || !c.exit || lap.length < 2) return null;
 	const mid = project(lap, c.x, c.y, c.distance, 500);
@@ -153,6 +174,12 @@ function measure(c: TrackCorner, lap: TelemetryRow[], frozen: boolean[]): Corner
 
 	let apex = first;
 	for (let i = first + 1; i <= last; i++) if (lap[i].speed < lap[apex].speed) apex = i;
+
+	const risingIn = apex === first && first > 0 && lap[first - 1].speed < lap[apex].speed;
+	const fallingOut = apex === last && last + 1 < lap.length && lap[last + 1].speed < lap[apex].speed;
+	if (risingIn || fallingOut) {
+		return { minSpeed: Math.round(speedAt(lap, mid.dist)), apexDist: mid.dist, flat: true };
+	}
 
 	let before = lap[apex].speed;
 	for (let i = apex; i >= 0 && lap[apex].distance - lap[i].distance <= 150; i--) {

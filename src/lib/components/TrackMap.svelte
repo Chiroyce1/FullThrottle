@@ -69,12 +69,14 @@
 	let containerWidth = $state(0);
 	let containerHeight = $state(0);
 
-	// Scales are needed by both effects
-	let xScale = $state<d3.ScaleLinear<number, number>>();
-	let yScale = $state<d3.ScaleLinear<number, number>>();
+	/**
+	 * Track coordinates to SVG pixels, rotation included. Rotating the
+	 * coordinates (rather than the SVG group) lets the map be fitted to the
+	 * rotated track and keeps every label upright without counter-rotation.
+	 */
+	type Projection = (x: number, y: number) => [number, number];
+	let toScreen = $state<Projection>();
 	let mapGroup = $state<d3.Selection<SVGGElement, unknown, null, undefined>>();
-	let rotateGroup =
-		$state<d3.Selection<SVGGElement, unknown, null, undefined>>();
 	let deltaGroup =
 		$state<d3.Selection<SVGGElement, unknown, null, undefined>>();
 	let cornersGroup =
@@ -83,23 +85,18 @@
 
 	// Keep track of zoom non-reactively because D3 handles the DOM updates directly
 	let currentZoom = 1;
-	// Size of the SVG viewport, set when the track is drawn — reused for rotation center
-	let svgWidth = 0;
-	let svgHeight = 0;
-
 	/**
 	 * Label position for a corner. FastF1's `angle` is the direction from the
 	 * corner to where its label belongs (track coordinates, y up), which
 	 * keeps labels off the racing line and on the outside of the bend.
 	 */
 	function cornerMarkerPosition(corner: TrackCorner): { x: number; y: number } {
-		if (!xScale || !yScale) return { x: 0, y: 0 };
-		const rad = ((corner.angle ?? 0) * Math.PI) / 180;
+		if (!toScreen) return { x: 0, y: 0 };
+		const [x, y] = toScreen(corner.x, corner.y);
+		// The label direction turns with the track.
+		const rad = (((corner.angle ?? 0) + rotation) * Math.PI) / 180;
 		const off = CORNER_OFFSET_PX * (currentZoom === 0 ? 1 : 1 / currentZoom);
-		return {
-			x: xScale(corner.x) + Math.cos(rad) * off,
-			y: yScale(corner.y) - Math.sin(rad) * off,
-		};
+		return { x: x + Math.cos(rad) * off, y: y - Math.sin(rad) * off };
 	}
 
 	// EFFECT 1: Draw the static track SVG when trackPath mounts or container dimensions change
@@ -109,6 +106,7 @@
 		// Reading dimensions explicitly so effect re-computes on container resize (e.g. sidebar drag)
 		const width = containerWidth;
 		const height = containerHeight;
+		const angle = rotation;
 		const curContainer = container;
 
 		untrack(() => {
@@ -118,50 +116,34 @@
 
 			const w = Math.round(width || curContainer.clientWidth || 300);
 			const h = Math.round(height || curContainer.clientHeight || 300);
-			svgWidth = w;
-			svgHeight = h;
-
-			const xExtent = d3.extent(
-				trackPath,
-				(d: { x: number; y: number }) => d.x,
-			) as [number, number];
-			const yExtent = d3.extent(
-				trackPath,
-				(d: { x: number; y: number }) => d.y,
-			) as [number, number];
-
-			const xSpan = Math.max(xExtent[1] - xExtent[0], 1);
-			const ySpan = Math.max(yExtent[1] - yExtent[0], 1);
-			const xMid = (xExtent[1] + xExtent[0]) / 2;
-			const yMid = (yExtent[1] + yExtent[0]) / 2;
-
-			// Usable drawing area inside the SVG
+			// Rotate counter-clockwise by `angle` (FastF1's convention), then fit
+			// the rotated track: uniform pixels per meter, centred, padded.
+			const rad = (angle * Math.PI) / 180;
+			const cos = Math.cos(rad);
+			const sin = Math.sin(rad);
+			const rot = (x: number, y: number): [number, number] => [
+				x * cos - y * sin,
+				x * sin + y * cos,
+			];
+			const rotated: [number, number][] = trackPath.map((p: { x: number; y: number }) =>
+				rot(p.x, p.y),
+			);
+			const [x0, x1] = d3.extent(rotated, (p) => p[0]) as [number, number];
+			const [y0, y1] = d3.extent(rotated, (p) => p[1]) as [number, number];
+			const pad = 1 + 2 * VIEWPORT_PADDING_RATIO;
 			const innerW = Math.max(w - 2 * MARGIN, 50);
 			const innerH = Math.max(h - 2 * MARGIN, 50);
-
-			// Add small padding around track geometry so dots and corner badges have room
-			const paddedXSpan = xSpan * (1 + 2 * VIEWPORT_PADDING_RATIO);
-			const paddedYSpan = ySpan * (1 + 2 * VIEWPORT_PADDING_RATIO);
-
-			// Pixels per meter — uniform across X and Y to prevent geometric distortion
-			const pixelsPerMeter = Math.min(innerW / paddedXSpan, innerH / paddedYSpan);
-
-			// Half range in meters displayed along X and Y axes
-			const halfDomainX = (w / 2) / pixelsPerMeter;
-			const halfDomainY = (h / 2) / pixelsPerMeter;
-
-			const _xScale = d3
-				.scaleLinear()
-				.domain([xMid - halfDomainX, xMid + halfDomainX])
-				.range([0, w]);
-
-			const _yScale = d3
-				.scaleLinear()
-				.domain([yMid - halfDomainY, yMid + halfDomainY])
-				.range([h, 0]);
-
-			xScale = _xScale;
-			yScale = _yScale;
+			const ppm = Math.min(
+				innerW / (Math.max(x1 - x0, 1) * pad),
+				innerH / (Math.max(y1 - y0, 1) * pad),
+			);
+			const cx = (x0 + x1) / 2;
+			const cy = (y0 + y1) / 2;
+			const project: Projection = (x, y) => {
+				const [rx, ry] = rot(x, y);
+				return [w / 2 + (rx - cx) * ppm, h / 2 - (ry - cy) * ppm];
+			};
+			toScreen = project;
 
 			// Setup D3 Zoom
 			const handleZoom = (e: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
@@ -182,13 +164,11 @@
 							.selectAll("g.corner-marker")
 							.attr("transform", (d: any) => {
 								const pos = cornerMarkerPosition(d);
-								return `translate(${pos.x},${pos.y}) rotate(${-rotation}) scale(${scaleFactor})`;
+								return `translate(${pos.x},${pos.y}) scale(${scaleFactor})`;
 							});
 					}
 					if (dotsGroup) {
-						dotsGroup
-							.selectAll("text")
-							.attr("transform", `rotate(${-rotation}) scale(${scaleFactor})`);
+						dotsGroup.selectAll("text").attr("transform", `scale(${scaleFactor})`);
 					}
 				}
 			};
@@ -206,29 +186,17 @@
 				.attr("preserveAspectRatio", "xMidYMid meet")
 				.call(zoom);
 
-			// Order of operations:
-			// 1. Zoom/Pan transformation (mapGroup interacts with mouse natively)
-			// 2. Rotation transformation (rotateGroup turns the geometric track data inside the pan window)
 			mapGroup = svg.append("g").attr("class", "pan-zoom-container");
-			rotateGroup = mapGroup!.append("g").attr("class", "rotation-container");
-
-			untrack(() => {
-				// We attach properties here so Svelte knows to reactive-update this rotateGroup externally
-				rotateGroup?.attr(
-					"transform",
-					`rotate(${rotation}, ${w / 2}, ${h / 2})`,
-				);
-			});
 
 			// Draw track line inside map group
 			const lineGenerator = d3
 				.line<{ x: number; y: number }>()
-				.x((d) => _xScale(d.x))
-				.y((d) => _yScale(d.y))
+				.x((d) => project(d.x, d.y)[0])
+				.y((d) => project(d.x, d.y)[1])
 				.curve(d3.curveCatmullRom.alpha(0.5)); // smooth curve
 
 			// Base track layer
-			rotateGroup!
+			mapGroup!
 				.append("path")
 				.datum(trackPath)
 				.attr("fill", "none")
@@ -239,19 +207,20 @@
 				.attr("d", lineGenerator);
 
 			// Speed delta overlay layer (drawn above base track, below dots)
-			deltaGroup = rotateGroup!.append("g").attr("class", "speed-delta-layer");
+			deltaGroup = mapGroup!.append("g").attr("class", "speed-delta-layer");
 
 			// Corner number labels layer (above delta, below dots)
-			cornersGroup = rotateGroup!.append("g").attr("class", "corners-layer");
+			cornersGroup = mapGroup!.append("g").attr("class", "corners-layer");
 
 			// Create a persistent layer for dots
-			dotsGroup = rotateGroup!.append("g").attr("class", "dots-layer");
+			dotsGroup = mapGroup!.append("g").attr("class", "dots-layer");
 		});
 	});
 
 	// EFFECT 2: Draw speed-delta overlay segments when comparison data changes
 	$effect(() => {
-		if (!deltaGroup || !xScale || !yScale) return;
+		if (!deltaGroup || !toScreen) return;
+		const project = toScreen;
 
 		if (!speedDeltaMode || speedDeltaSegments.length === 0) {
 			deltaGroup!.selectAll("path.delta-segment").remove();
@@ -264,8 +233,8 @@
 
 		const lineGenerator = d3
 			.line<{ x: number; y: number }>()
-			.x((d) => xScale!(d.x))
-			.y((d) => yScale!(d.y))
+			.x((d) => project(d.x, d.y)[0])
+			.y((d) => project(d.x, d.y)[1])
 			.curve(d3.curveCatmullRom.alpha(0.5));
 
 		deltaGroup!
@@ -308,7 +277,8 @@
 	// EFFECT 3: Render & update the dynamic telemetry dots at 60fps
 	$effect(() => {
 		// Only run if the scales and group are ready
-		if (!dotsGroup || !xScale || !yScale) return;
+		if (!dotsGroup || !toScreen) return;
+		const project = toScreen;
 
 		// Filter out dots with 0,0 coordinates which usually means they are in the pits w/o valid position
 		const validDots = activeDots.filter(
@@ -355,13 +325,13 @@
 							.attr("font-size", TEXT_FONT_SIZE)
 							.attr("font-family", "monospace")
 							.attr("font-weight", "bold")
-							.attr("transform", `rotate(${-rotation}) scale(${scaleFactor})`)
+							.attr("transform", `scale(${scaleFactor})`)
 							.text((d: DriverDot) => dotLabel(d));
 					}
 
 					return g.attr(
 						"transform",
-						(d: DriverDot) => `translate(${xScale!(d.x)},${yScale!(d.y)})`,
+						(d: DriverDot) => `translate(${project(d.x, d.y).join(",")})`,
 					);
 				},
 				(
@@ -383,11 +353,11 @@
 								.attr("font-size", TEXT_FONT_SIZE)
 								.attr("font-family", "monospace")
 								.attr("font-weight", "bold")
-								.attr("transform", `rotate(${-rotation}) scale(${scaleFactor})`)
+								.attr("transform", `scale(${scaleFactor})`)
 								.text((d: DriverDot) => dotLabel(d));
 						} else {
 							texts
-								.attr("transform", `rotate(${-rotation}) scale(${scaleFactor})`)
+								.attr("transform", `scale(${scaleFactor})`)
 								.text((d: DriverDot) => dotLabel(d));
 						}
 					} else {
@@ -396,7 +366,7 @@
 
 					return update.attr(
 						"transform",
-						(d: DriverDot) => `translate(${xScale!(d.x)},${yScale!(d.y)})`,
+						(d: DriverDot) => `translate(${project(d.x, d.y).join(",")})`,
 					);
 				},
 				(exit: d3.Selection<SVGGElement, DriverDot, SVGGElement, unknown>) =>
@@ -406,7 +376,7 @@
 
 	// EFFECT 4: Render corner number markers on the track
 	$effect(() => {
-		if (!cornersGroup || !xScale || !yScale) return;
+		if (!cornersGroup || !toScreen) return;
 
 		if (corners.length === 0) {
 			cornersGroup.selectAll("g.corner-marker").remove();
@@ -470,7 +440,7 @@
 
 					return g.attr("transform", (d: TrackCorner) => {
 						const pos = cornerMarkerPosition(d);
-						return `translate(${pos.x},${pos.y}) rotate(${-rotation}) scale(${scaleFactor})`;
+						return `translate(${pos.x},${pos.y}) scale(${scaleFactor})`;
 					});
 				},
 				(update) => {
@@ -508,7 +478,7 @@
 
 					return update.attr("transform", (d: TrackCorner) => {
 						const pos = cornerMarkerPosition(d);
-						return `translate(${pos.x},${pos.y}) rotate(${-rotation}) scale(${scaleFactor})`;
+						return `translate(${pos.x},${pos.y}) scale(${scaleFactor})`;
 					});
 				},
 				(exit) => exit.remove(),
@@ -519,7 +489,7 @@
 	$effect(() => {
 		if (!cornersGroup) return;
 		const curActive = activeCorner;
-		const r = rotation;
+		toScreen; // re-place labels after a redraw
 		const scaleFactor = 1 / currentZoom;
 
 		cornersGroup
@@ -538,35 +508,8 @@
 
 				const pos = cornerMarkerPosition(d);
 				const s = isActive ? scaleFactor * 1.25 : scaleFactor;
-				group.attr("transform", `translate(${pos.x},${pos.y}) rotate(${-r}) scale(${s})`);
+				group.attr("transform", `translate(${pos.x},${pos.y}) scale(${s})`);
 			});
-	});
-
-	// EFFECT 5: Apply rotation when `rotation` changes
-	$effect(() => {
-		const r = rotation;
-		if (!rotateGroup || svgWidth === 0 || svgHeight === 0) return;
-
-		const cx = svgWidth / 2;
-		const cy = svgHeight / 2;
-		rotateGroup.attr("transform", `rotate(${r}, ${cx}, ${cy})`);
-
-		if (cornersGroup) {
-			const scaleFactor = 1 / currentZoom;
-			cornersGroup
-				.selectAll<SVGGElement, TrackCorner>("g.corner-marker")
-				.attr("transform", (d: TrackCorner) => {
-					const pos = cornerMarkerPosition(d);
-					return `translate(${pos.x},${pos.y}) rotate(${-r}) scale(${scaleFactor})`;
-				});
-		}
-
-		if (dotsGroup) {
-			const scaleFactor = 1 / currentZoom;
-			dotsGroup
-				.selectAll("text")
-				.attr("transform", `rotate(${-r}) scale(${scaleFactor})`);
-		}
 	});
 </script>
 

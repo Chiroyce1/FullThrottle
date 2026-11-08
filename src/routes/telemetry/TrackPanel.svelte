@@ -14,7 +14,7 @@
 		activeDots={view.mapCursor}
 		speedDeltaMode={view.speedDeltaMode}
 		speedDeltaSegments={view.speedDeltaSegments}
-		rotation={0}
+		rotation={view.trackRotation}
 		showLabels={false}
 		corners={view.visibleCorners}
 		activeCorner={view.activeCorner}

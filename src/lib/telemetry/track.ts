@@ -18,24 +18,30 @@ export function isValidCoord(x: number | undefined, y: number | undefined): bool
 	return !(x === 0 && y === 0);
 }
 
+/** How many candidate laps to try before giving up on a clean outline. */
+const MAX_PATH_CANDIDATES = 120;
+
+/**
+ * Outline of the circuit from one real lap: the fastest believable lap,
+ * preferring the given driver (e.g. the race winner). Laps are tried
+ * fastest first across all drivers until one passes `isConsistentPath`,
+ * so a stretch of corrupt position data can't become the map.
+ */
 export function extractTrackPath(
 	grouped: Record<string, TelemetryRow[]>,
 	lapPointCounts: Record<string, Record<number, number>>,
 	preferredDriverId: string,
 ): TrackPoint[] {
-	// If a preferred driver (e.g. race winner) is provided, test their best lap first
-	if (preferredDriverId && grouped[preferredDriverId]) {
-		const best = findBestLap(grouped[preferredDriverId]);
-		if (best) {
-			const path = extractLapPath(grouped[preferredDriverId], best.lapNumber);
-			if (isConsistentPath(path)) return path;
-		}
-	}
+	const byTime = (a: DriverBestLap, b: DriverBestLap) => a.time - b.time;
+	const preferred = (grouped[preferredDriverId] ? lapTimes(grouped[preferredDriverId]) : [])
+		.map((l) => ({ driverId: preferredDriverId, ...l }))
+		.sort(byTime);
+	const others = Object.keys(grouped)
+		.filter((id) => id !== preferredDriverId)
+		.flatMap((id) => lapTimes(grouped[id]).map((l) => ({ driverId: id, ...l })))
+		.sort(byTime);
 
-	const fastest = rankByBestLap(grouped);
-	for (let i = 0; i < fastest.length; i++) {
-		const c = fastest[i];
-		if (c.driverId === preferredDriverId) continue;
+	for (const c of [...preferred, ...others].slice(0, MAX_PATH_CANDIDATES)) {
 		const path = extractLapPath(grouped[c.driverId] ?? [], c.lapNumber);
 		if (isConsistentPath(path)) return path;
 	}
@@ -46,7 +52,8 @@ export function extractTrackPath(
 		if (path.length > 0 && isConsistentPath(path)) return path;
 	}
 
-	// Last resort: sample every 10th point from the preferred (or first) driver
+	// Last resort (no usable lap numbers): every 10th point of one driver,
+	// only if it is circuit-sized. No map beats a wrong one.
 	const fallbackId =
 		preferredDriverId && grouped[preferredDriverId]
 			? preferredDriverId
@@ -60,7 +67,7 @@ export function extractTrackPath(
 			path.push({ x: trace[i].x as number, y: trace[i].y as number });
 		}
 	}
-	return path;
+	return withinCircuitSpan(path) ? path : [];
 }
 
 function findDensestLap(
@@ -83,25 +90,11 @@ function findDensestLap(
 	return best;
 }
 
-function rankByBestLap(grouped: Record<string, TelemetryRow[]>): DriverBestLap[] {
-	const ranked: DriverBestLap[] = [];
-
-	for (const driverId of Object.keys(grouped)) {
-		const best = findBestLap(grouped[driverId]);
-		if (best) ranked.push({ driverId, ...best });
-	}
-
-	ranked.sort((a, b) => a.time - b.time);
-	return ranked;
-}
-
-function findBestLap(trace: TelemetryRow[]): { lapNumber: number; time: number } | null {
-	if (trace.length < 2) return null;
-
+/** Every complete lap's duration from the telemetry clock. */
+function lapTimes(trace: TelemetryRow[]): { lapNumber: number; time: number }[] {
+	const out: { lapNumber: number; time: number }[] = [];
 	let currentLap = 0;
 	let lapStart = Number.NaN;
-	let bestLapNumber = 0;
-	let bestLapTime = Infinity;
 
 	for (let i = 0; i < trace.length; i++) {
 		const lap = trace[i].lap_number ?? 0;
@@ -118,17 +111,12 @@ function findBestLap(trace: TelemetryRow[]): { lapNumber: number; time: number }
 			const duration = time - lapStart;
 			// Real Grand Prix racing laps are between 45s and 300s.
 			// Shorter durations indicate pit exits, incomplete/aborted laps, or timing dropouts.
-			if (duration >= 45 && duration < 300 && duration < bestLapTime) {
-				bestLapTime = duration;
-				bestLapNumber = currentLap;
-			}
+			if (duration >= 45 && duration < 300) out.push({ lapNumber: currentLap, time: duration });
 			currentLap = lap;
 			lapStart = time;
 		}
 	}
-
-	if (bestLapNumber <= 0 || !Number.isFinite(bestLapTime)) return null;
-	return { lapNumber: bestLapNumber, time: bestLapTime };
+	return out;
 }
 
 function extractLapPath(trace: TelemetryRow[], lapNumber: number): TrackPoint[] {
@@ -142,8 +130,31 @@ function extractLapPath(trace: TelemetryRow[], lapNumber: number): TrackPoint[] 
 	return removeOutliers(path);
 }
 
+/**
+ * Limits for a believable lap outline, in FastF1 decimetres. Measured on
+ * the fastest qualifying laps at every circuit: the largest is Jeddah at
+ * 2.74 km across, and the biggest gap between consecutive samples 135 m.
+ * Corrupt position data (2026 Monaco race laps 2-40 put cars hundreds of
+ * km away) fails these even when it is self-consistent.
+ */
+const MAX_CIRCUIT_SPAN = 40_000;
+const MAX_SAMPLE_STEP = 3_000;
+
+function withinCircuitSpan(path: TrackPoint[]): boolean {
+	let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+	for (const p of path) {
+		minX = Math.min(minX, p.x);
+		maxX = Math.max(maxX, p.x);
+		minY = Math.min(minY, p.y);
+		maxY = Math.max(maxY, p.y);
+	}
+	return Math.max(maxX - minX, maxY - minY) <= MAX_CIRCUIT_SPAN;
+}
+
 export function isConsistentPath(path: TrackPoint[]): boolean {
 	if (path.length < 80) return false;
+
+	if (!withinCircuitSpan(path)) return false;
 
 	const stepDistances: number[] = [];
 	let totalDist = 0;
@@ -180,7 +191,11 @@ export function isConsistentPath(path: TrackPoint[]): boolean {
 		if (d > maxJump) maxJump = d;
 	}
 
-	return jumpCount / stepDistances.length <= 0.08 && maxJump / median <= 24;
+	return (
+		jumpCount / stepDistances.length <= 0.08 &&
+		maxJump / median <= 24 &&
+		maxJump <= MAX_SAMPLE_STEP
+	);
 }
 
 function removeOutliers(path: TrackPoint[]): TrackPoint[] {

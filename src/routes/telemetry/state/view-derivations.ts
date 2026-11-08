@@ -22,28 +22,39 @@ export interface LapIdentity {
 }
 
 /**
- * Lift & coast: throttle below `throttleThreshold` % and off the brake for
- * longer than LICO_MIN_DISTANCE.
+ * Lift & coast: coming off the throttle (below `throttleThreshold` %) and
+ * coasting, off the brake, into a braking zone for at least
+ * LICO_MIN_DISTANCE. Runs from the lift to the first brake sample.
+ * Off-throttle stretches that start from the brake (mid-corner) or end
+ * back on the throttle (a lift through a corner) aren't LiCO.
  */
 export function computeLicoHighlights(
 	datasets: TelemetryRow[][],
 	throttleThreshold = LICO_THROTTLE_THRESHOLD,
 ): ChartHighlight[] {
 	const out: ChartHighlight[] = [];
+	const coasting = (r: TelemetryRow) => (r.throttle || 0) < throttleThreshold && !r.brake;
 	for (const data of datasets) {
-		let cur: ChartHighlight | null = null;
-		for (const row of data) {
-			const isLico = (row.throttle || 0) < throttleThreshold && !row.brake;
-			if (isLico) {
-				const d = row.distance ?? 0;
-				if (!cur) cur = { start: d, end: d, color: LICO_COLOR, label: "LiCO" };
-				else cur.end = d;
-			} else if (cur) {
-				if (cur.end - cur.start > LICO_MIN_DISTANCE) out.push(cur);
-				cur = null;
+		let i = 1;
+		while (i < data.length) {
+			if (!coasting(data[i])) {
+				i++;
+				continue;
 			}
+			let j = i;
+			while (j + 1 < data.length && coasting(data[j + 1])) j++;
+			const prev = data[i - 1];
+			const next = data[j + 1];
+			const fromThrottle = !prev.brake && (prev.throttle || 0) >= throttleThreshold;
+			if (fromThrottle && next?.brake) {
+				const start = data[i].distance ?? 0;
+				const end = next.distance ?? 0;
+				if (end - start >= LICO_MIN_DISTANCE) {
+					out.push({ start, end, color: LICO_COLOR, label: "LiCO" });
+				}
+			}
+			i = j + 1;
 		}
-		if (cur && cur.end - cur.start > LICO_MIN_DISTANCE) out.push(cur);
 	}
 	return out;
 }

@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TelemetryRow } from "$lib/types";
 import { analyzeCorners } from "$lib/telemetry/corners";
-import { LICO_COLOR } from "$lib/constants";
-import { lapOf, session, toRows } from "../../../../tests/fixtures/corners/load";
+import { fixture, lapOf, session, toRows } from "../../../../tests/fixtures/corners/load";
 import {
 	activeCornerAt,
 	activeCornerSummary,
@@ -29,39 +28,28 @@ const laps: LapIdentity[] = [
 const analysis = analyzeCorners(austin.corners, [toRows(ver), toRows(nor)]);
 const expectedMins = analysis.corners.map((_, k) => [ver.expected[k].min, nor.expected[k].min]);
 
-describe("computeLicoHighlights", () => {
-	it("marks off-throttle, off-brake stretches longer than the minimum", () => {
-		const lap = [0, 10, 20, 30, 40, 50, 60].map((d) =>
-			row({ distance: d, throttle: d >= 10 && d <= 50 ? 0 : 100, brake: false }),
-		);
-		expect(computeLicoHighlights([lap])).toEqual([
-			{ start: 10, end: 50, color: LICO_COLOR, label: "LiCO" },
-		]);
+describe("computeLicoHighlights on real laps", () => {
+	for (const sess of fixture.sessions) {
+		for (const lap of sess.laps) {
+			it(`${sess.session} ${lap.driver} lap ${lap.lap} (${lap.case}) matches the numpy reference`, () => {
+				const got = computeLicoHighlights([toRows(lap)]).map((h) => [h.start, h.end]);
+				expect(got).toEqual(lap.lico);
+			});
+		}
+	}
+
+	it("finds PER's lifts before the Austin braking zones", () => {
+		const per = lapOf(session("f1_2026_rd18_r"), "PER", 30);
+		expect(computeLicoHighlights([toRows(per)])).toHaveLength(3);
 	});
 
-	it("ignores braking zones and short lifts", () => {
-		const braking = [0, 10, 20, 30, 40].map((d) =>
-			row({ distance: d, throttle: 0, brake: true }),
-		);
-		const shortLift = [0, 5, 10, 15].map((d) =>
-			row({ distance: d, throttle: d === 5 || d === 10 ? 0 : 100, brake: false }),
-		);
-		expect(computeLicoHighlights([braking, shortLift])).toEqual([]);
+	it("leaves out mid-corner coasting on a pole lap", () => {
+		expect(computeLicoHighlights([toRows(ver)])).toEqual([]);
 	});
 
-	it("respects a custom throttle threshold", () => {
-		const lap = [0, 10, 20, 30, 40, 50].map((d) =>
-			row({ distance: d, throttle: d >= 10 && d <= 40 ? 12 : 100, brake: false }),
-		);
-		expect(computeLicoHighlights([lap], 10)).toEqual([]);
-		expect(computeLicoHighlights([lap], 15)).toHaveLength(1);
-	});
-
-	it("closes a stretch that runs to the end of the lap", () => {
-		const lap = [0, 10, 20, 30, 40].map((d) =>
-			row({ distance: d, throttle: d === 0 ? 100 : 0, brake: false }),
-		);
-		expect(computeLicoHighlights([lap])).toHaveLength(1);
+	it("finds less with a stricter throttle threshold", () => {
+		const per = toRows(lapOf(session("f1_2026_rd18_r"), "PER", 30));
+		expect(computeLicoHighlights([per], 5).length).toBeLessThanOrEqual(3);
 	});
 });
 

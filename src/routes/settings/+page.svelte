@@ -135,7 +135,7 @@
 	{/snippet}
 	{@render group(
 		"Lift and coast",
-		"Stretches below this throttle with no braking are highlighted as LiCO on telemetry charts.",
+		"Lifts below this throttle that coast at least 60 m into a braking zone are highlighted as LiCO on telemetry charts.",
 		licoRows,
 	)}
 

@@ -8,7 +8,11 @@ and forward-filled dropouts. Expected results are computed here in numpy,
 separately from the TypeScript implementation.
 
 Definition: a corner's minimum speed is the lowest speed recorded between
-its entry and exit (static/tracks/*.json, from ingest/corner_spans.py).
+its entry and exit (static/tracks/*.json, from ingest/corner_spans.py),
+provided speed bottoms out there. A lowest sample on the span's edge with
+speed still rising into it or still falling out of it isn't the corner's:
+the reading is then the speed at the corner's point (linear between
+samples, rounded half up).
 Entry and exit are projected onto the lap's path (the polyline through
 its samples), so sampling gaps don't move them. A reading is null when
 the path doesn't pass within LOCATE_TOLERANCE_M of entry or exit (pit
@@ -30,7 +34,9 @@ import pandas as pd
 LOCATE_TOLERANCE_M = 10.0  # normal laps: 99.9% within 3.4 m; pit lane runs ~20 m off
 MAX_GAP_M = 40.0
 FROZEN_RUN_M = 80.0
-COLS = ["session_time", "distance", "speed", "rpm", "n_gear", "x", "y"]
+COLS = ["session_time", "distance", "speed", "rpm", "n_gear", "x", "y", "throttle", "brake"]
+LICO_THROTTLE = 20.0
+LICO_MIN_M = 60.0
 OUT = os.path.join(os.path.dirname(__file__), "laps.json.gz")
 
 # session, track file, laps to take: ("best", abbr) = that driver's fastest
@@ -39,7 +45,10 @@ PICKS = {
     ("f1_2026_rd18_q", "austin"): [("best", a) for a in ["VER", "NOR", "LEC", "RUS", "HAM", "ANT"]],
     ("f1_2026_rd13_q", "monza"): [("best", a) for a in ["NOR", "VER", "GAS"]],  # GAS: dropout
     ("f1_2026_rd6_q", "monaco"): [("best", a) for a in ["VER", "LEC", "NOR"]],
-    ("f1_2026_rd18_r", "austin"): "scan",  # green, VSC, pit and gappy race laps
+    # Scanned green, VSC, pit and gappy race laps; PER and ALO lift and coast.
+    ("f1_2026_rd18_r", "austin"): ["scan", ("PER", 30, "lico"), ("ALO", 42, "lico")],
+    # T13 has no minimum of its own: speed is still rising out of T12.
+    ("f1_2026_rd20_r", "sao_paulo"): [("VER", 67), ("NOR", 67)],
 }
 
 
@@ -117,7 +126,35 @@ def expected(lap, corners):
         if hidden:
             out.append({"min": None, "why": "gap"})
             continue
-        out.append({"min": int(v[inside].min())})
+        apex = inside[np.argmin(v[inside])]
+        rising_in = apex == inside[0] and apex > 0 and v[apex - 1] < v[apex]
+        falling_out = apex == inside[-1] and apex + 1 < n and v[apex + 1] < v[apex]
+        if rising_in or falling_out:
+            out.append({"min": int(np.floor(np.interp(mid, d, v) + 0.5)), "why": "no minimum"})
+            continue
+        out.append({"min": int(v[apex])})
+    return out
+
+
+def expected_lico(lap):
+    """Lift and coast: off the throttle from a throttle application, off the
+    brake, into a braking zone, for LICO_MIN_M or more (lift to first brake)."""
+    th, br, d = lap.throttle.to_numpy(float), lap.brake.to_numpy(bool), lap.distance.to_numpy(float)
+    coast = (th < LICO_THROTTLE) & ~br
+    # Run boundaries: indices where coast switches on / off.
+    edges = np.flatnonzero(np.diff(coast.astype(int)))
+    out = []
+    for k in range(len(edges)):
+        i = edges[k] + 1
+        if not coast[i]:
+            continue
+        j = edges[k + 1] if k + 1 < len(edges) else len(d) - 1
+        if j + 1 >= len(d):
+            continue  # runs to the end of the lap: no braking after it
+        if br[i - 1] or th[i - 1] < LICO_THROTTLE or not br[j + 1]:
+            continue
+        if d[j + 1] - d[i] >= LICO_MIN_M:
+            out.append([round(float(d[i]), 3), round(float(d[j + 1]), 3)])
     return out
 
 
@@ -132,7 +169,7 @@ def scan_race(df, meta, abbr, corners):
         if len(lap) < 200 or lap.distance.iloc[-1] < 4000:
             continue
         exp = expected(lap, corners)
-        whys = {e.get("why") for e in exp}
+        whys = {e.get("why") for e in exp} - {"no minimum"}
         status = set(g.track_status.unique())
         case = None
         if want["vsc"] and status & {6, 7}:
@@ -155,13 +192,19 @@ def main():
         df, meta, abbr = load(base)
         corners = sorted(json.load(open(f"static/tracks/{track}.json"))["corners"], key=lambda c: c["distance"])
         by_abbr = {d["abbreviation"]: d for d in meta["drivers"].values()}
-        if picks == "scan":
-            chosen = scan_race(df, meta, abbr, corners)
-        else:
-            chosen = []
-            for _, a in picks:
-                best = min(by_abbr[a]["valid_laps"], key=lambda l: l["lap_time"])
-                chosen.append((a, best["lap_number"], "best"))
+        chosen = []
+        for pick in picks:
+            if pick == "scan":
+                chosen += scan_race(df, meta, abbr, corners)
+            elif len(pick) == 3:
+                chosen.append(pick)
+            else:
+                a, b = pick
+                if a == "best":
+                    best = min(by_abbr[b]["valid_laps"], key=lambda l: l["lap_time"])
+                    chosen.append((b, best["lap_number"], "best"))
+                else:
+                    chosen.append((a, b, "green"))
         laps = []
         for a, ln, case in chosen:
             lap = lap_rows(df, by_abbr[a]["driver_number"], ln)
@@ -169,11 +212,12 @@ def main():
                 "driver": a,
                 "lap": ln,
                 "case": case,
-                "rows": {c: [round(float(v), 3) for v in lap[c]] for c in COLS},
+                "rows": {c: [round(float(v), 3) for v in lap[c].astype(float)] for c in COLS},
                 "expected": expected(lap, corners),
+                "lico": expected_lico(lap),
             })
-            nulls = [e["why"] for e in laps[-1]["expected"] if e["min"] is None]
-            print(f"{base} {a} lap {ln} ({case}): {len(lap)} samples, null: {nulls or 'none'}")
+            nulls = [e["why"] for e in laps[-1]["expected"] if e.get("why")]
+            print(f"{base} {a} lap {ln} ({case}): {len(lap)} samples, lico: {laps[-1]['lico']}, null: {nulls or 'none'}")
         sessions.append({"session": base, "track": track, "corners": corners, "laps": laps})
 
     with gzip.open(OUT, "wt") as f:

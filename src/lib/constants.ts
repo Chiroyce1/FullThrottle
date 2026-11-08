@@ -9,8 +9,13 @@ export const MAX_LAP_TIME_SECONDS = 600;
  *  Users can override it via settings.licoThrottleSensitivity. */
 export const LICO_THROTTLE_THRESHOLD = 20;
 
-/** Minimum distance (metres) a LiCO segment must span to be rendered */
-export const LICO_MIN_DISTANCE = 20;
+/**
+ * Minimum coast (metres, from lifting to braking) that counts as LiCO. On
+ * real 2026 race laps the gap between lifting and braking is a median 5 m
+ * and under ~35 m for 90% of braking zones (pedal transitions and sample
+ * spacing); 60 m+ is ~2%, deliberate lifts.
+ */
+export const LICO_MIN_DISTANCE = 60;
 
 /** Highlight colour used to shade LiCO regions on charts */
 export const LICO_COLOR = "#7dd3fc";

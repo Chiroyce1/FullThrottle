@@ -1,6 +1,7 @@
 /**
  * Real-lap corner fixture (see build.py): 2026 Austin qualifying and race,
- * Monza and Monaco qualifying, with minimum speeds computed in numpy.
+ * Monza and Monaco qualifying, Brazil race, with minimum speeds and
+ * lift-and-coast stretches computed in numpy.
  */
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
@@ -10,9 +11,14 @@ import type { TelemetryRow } from "$lib/types";
 export interface FixtureLap {
 	driver: string;
 	lap: number;
-	case: "best" | "green" | "vsc" | "not driven" | "gap";
-	rows: Record<"session_time" | "distance" | "speed" | "rpm" | "n_gear" | "x" | "y", number[]>;
+	case: "best" | "green" | "vsc" | "not driven" | "gap" | "lico";
+	rows: Record<
+		"session_time" | "distance" | "speed" | "rpm" | "n_gear" | "x" | "y" | "throttle" | "brake",
+		number[]
+	>;
 	expected: { min: number | null; why?: string }[];
+	/** Lift-and-coast stretches [start, end] in metres (default threshold). */
+	lico: [number, number][];
 }
 
 export interface FixtureSession {
@@ -44,6 +50,8 @@ export function toRows(lap: FixtureLap): TelemetryRow[] {
 				n_gear: c.n_gear[i],
 				x: c.x[i],
 				y: c.y[i],
+				throttle: c.throttle[i],
+				brake: c.brake[i] === 1,
 			}) as TelemetryRow,
 	);
 }

@@ -33,6 +33,8 @@ export class TelemetryView {
 	showCorners = $state(true);
 	showCornerSpeeds = $state(true);
 	trackCorners = $state<TrackCorner[]>([]);
+	/** The circuit's usual map orientation (FastF1), degrees. */
+	trackRotation = $state(0);
 	#lastCornerLocation = "";
 
 	constructor(tm: TelemetryState) {
@@ -44,10 +46,12 @@ export class TelemetryView {
 			this.#lastCornerLocation = location;
 			if (!location) {
 				this.trackCorners = [];
+				this.trackRotation = 0;
 				return;
 			}
 			loadTrackCorners(location).then((data) => {
 				this.trackCorners = data?.corners ?? [];
+				this.trackRotation = data?.rotation ?? 0;
 			});
 		});
 	}

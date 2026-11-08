@@ -107,6 +107,8 @@ export class ReplayView {
 			this.#lastCornerLocation = location;
 			loadTrackCorners(location).then((data) => {
 				this.trackCorners = data?.corners ?? [];
+				// Start in the circuit's usual orientation; the slider adjusts from there.
+				this.mapRotation = Math.round(data?.rotation ?? 0) % 360;
 			});
 		});
 	}

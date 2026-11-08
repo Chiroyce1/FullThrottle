@@ -34,9 +34,10 @@
 
 	{#snippet lico()}
 		<span class="text-foreground">Lift and coast</span> is when a driver comes off the
-		throttle before braking, to save fuel or energy or manage tyres. Stretches below the
+		throttle before braking, to save fuel or energy or manage tyres. A lift below the
 		throttle threshold (20% by default, adjustable in
-		<a href="/settings" class={link}>settings</a>) with no braking are highlighted as LiCO.
+		<a href="/settings" class={link}>settings</a>) that coasts at least 60 m into a braking
+		zone is highlighted as LiCO. Coasting through a corner between brake and throttle isn't.
 	{/snippet}
 	{@render item('What is "LiCO"?', lico)}
 
