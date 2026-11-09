@@ -159,7 +159,12 @@ export class ReplayView {
 		return sortLiveLeaderboard(entries, this.sessionMode, this.isQualifying);
 	});
 
-	readonly leaderLap = $derived.by(() => this.leaderboard[0]?.row?.lap_number || 1);
+	/** The leader's lap, held at the race distance during the run back after the flag. */
+	readonly leaderLap = $derived.by(() => {
+		const lap = this.leaderboard[0]?.row?.lap_number || 1;
+		const total = this.engine.totalLaps;
+		return total ? Math.min(lap, total) : lap;
+	});
 
 	/** Flags are global, so the leader's track status stands for the session. */
 	readonly trackStatus = $derived.by(

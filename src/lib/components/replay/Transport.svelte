@@ -32,9 +32,7 @@
 		<TrackStatusBadge status={view.trackStatus} />
 
 		<span class="ml-auto font-mono text-xs text-muted-foreground tabular-nums">
-			Lap {view.leaderLap}{#if engine.metadata?.session_info?.totalLaps}<span
-					>/{engine.metadata.session_info.totalLaps}</span
-				>{/if}
+			Lap {view.leaderLap}{#if engine.totalLaps}<span>/{engine.totalLaps}</span>{/if}
 		</span>
 
 		<label class="flex items-center gap-2 text-xs text-muted-foreground">

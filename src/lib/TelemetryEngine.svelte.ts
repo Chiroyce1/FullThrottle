@@ -19,6 +19,7 @@ import { computeLapStats, buildLapIndex } from "$lib/telemetry/lap-stats";
 import type { DriverLapStats, LapCompletionEvent } from "$lib/telemetry/lap-stats";
 import { applyDynamicNeighborGaps, estimateLapLengthMeters } from "$lib/telemetry/gaps";
 import { downsampleTraces } from "$lib/telemetry/downsample";
+import { classifiedLaps, raceLaps, relabelLaps } from "$lib/telemetry/race-laps";
 
 export interface LoadBenchmark {
 	fetchMs: number;
@@ -191,6 +192,11 @@ export class TelemetryEngine {
 	private loadToken = 0;
 	private activeLoadController: AbortController | null = null;
 
+	/** Race distance in laps from the classification, else the ingest's count. */
+	get totalLaps(): number | null {
+		return raceLaps(this.metadata) ?? this.metadata?.session_info?.totalLaps ?? null;
+	}
+
 	get driverList() {
 		return this.uniqueDrivers;
 	}
@@ -330,17 +336,24 @@ export class TelemetryEngine {
 					grouped[id] = [];
 				}
 				grouped[id].push(row);
-
-				const lap = row.lap_number ?? 0;
-				if (lap > 0 && isValidCoord(row.x as number | undefined, row.y as number | undefined)) {
-					if (!lapPointCounts[id]) lapPointCounts[id] = {};
-					lapPointCounts[id][lap] = (lapPointCounts[id][lap] ?? 0) + 1;
-				}
 			}
 
 			const driverIds = Object.keys(grouped);
 			for (let i = 0; i < driverIds.length; i++) {
-				grouped[driverIds[i]].sort((a, b) => a.session_time - b.session_time);
+				const id = driverIds[i];
+				grouped[id].sort((a, b) => a.session_time - b.session_time);
+				relabelLaps(
+					grouped[id],
+					this.metadata?.drivers?.[id]?.valid_laps ?? [],
+					classifiedLaps(this.metadata, id),
+				);
+				const counts: Record<number, number> = (lapPointCounts[id] = {});
+				for (const row of grouped[id]) {
+					const lap = row.lap_number ?? 0;
+					if (lap > 0 && isValidCoord(row.x as number | undefined, row.y as number | undefined)) {
+						counts[lap] = (counts[lap] ?? 0) + 1;
+					}
+				}
 			}
 
 			const path = extractTrackPath(grouped, lapPointCounts, winner);
