@@ -36,6 +36,16 @@
 					>Cloudflare</a
 				> for hosting. Data from
 				<a
+					href="https://openf1.org"
+					class="text-foreground underline decoration-border-strong underline-offset-4 hover:decoration-foreground"
+					>OpenF1</a
+				>
+				(<a
+					href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
+					class="whitespace-nowrap text-foreground underline decoration-border-strong underline-offset-4 hover:decoration-foreground"
+					>CC BY-NC-SA 4.0</a
+				>) and
+				<a
 					href="https://github.com/theOehrly/Fast-F1"
 					class="text-foreground underline decoration-border-strong underline-offset-4 hover:decoration-foreground"
 					>FastF1</a

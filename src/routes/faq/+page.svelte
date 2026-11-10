@@ -19,9 +19,12 @@
 	<h1 class="display mt-2 mb-10 text-display-sm text-foreground sm:text-display-md">FAQ</h1>
 
 	{#snippet data()}
-		All data comes from <a href="https://docs.fastf1.dev/" class={link}>FastF1</a>, which
-		pulls official timing and telemetry from F1's live timing feeds and historical
-		archives.
+		Recent sessions come from <a href="https://openf1.org" class={link}>OpenF1</a>, a free,
+		community-run API for Formula 1 timing and telemetry, used under
+		<a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class={link}>CC BY-NC-SA 4.0</a>.
+		Earlier sessions were built with <a href="https://docs.fastf1.dev/" class={link}>FastF1</a>,
+		the open-source Python library for F1's live timing feeds. Neither is affiliated with
+		Formula 1, and neither is FullThrottle.
 	{/snippet}
 	{@render item("Where does the data come from?", data)}
 

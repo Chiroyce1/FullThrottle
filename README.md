@@ -1,6 +1,6 @@
-[![FullThrottle](/static/banner.png)](https://fullthrottle.chiroyce.dev/)
-
 [![Svelte](https://img.shields.io/badge/Svelte-%23f1413d.svg?style=for-the-badge&logo=svelte&logoColor=white)](https://svelte.dev) [![Formula 1](https://img.shields.io/badge/Formula%201-E10600.svg?style=for-the-badge&logo=f1&logoColor=white)](https://fastf1.dev/) [![GitHub stars](https://img.shields.io/github/stars/Chiroyce1/FullThrottle.svg?style=for-the-badge&logo=github)](https://github.com/Chiroyce1/FullThrottle/stargazers)
+
+[![FullThrottle](/static/dashboard_preview.png)](https://fullthrottle.chiroyce.dev/)
 
 **[FullThrottle](https://fullthrottle.chiroyce.dev/)** is a fast, free, and open-source Formula 1 telemetry visualizer and session replay tool that runs entirely in your browser.
 
@@ -122,4 +122,7 @@ If you spot bugs, want to improve the telemetry systems, or have an idea for a c
 
 FullThrottle is an unofficial, non-commercial fan project. It is not associated, endorsed, or affiliated in any way with Formula 1, FIA, Liberty Media, or Formula One Management. F1, FORMULA ONE, FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP, GRAND PRIX and related marks are registered trademarks of Formula One Licensing B.V.
 
-Licensed under [AGPLv3](LICENSE).
+## License
+
+- **Code:** [AGPLv3](LICENSE).
+- **Data:** sessions ingested from [OpenF1](https://openf1.org) are derived from OpenF1 data and shared under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/), as OpenF1 is. Earlier sessions were built with [FastF1](https://github.com/theOehrly/Fast-F1) (MIT).

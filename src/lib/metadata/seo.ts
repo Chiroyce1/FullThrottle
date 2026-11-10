@@ -43,14 +43,14 @@ export const SITE_CONFIG = {
 			path: "/faq",
 			title: "Frequently Asked Questions (FAQ)",
 			description:
-				"Answers to common questions about FullThrottle: FastF1 telemetry data sources, how to read speed and throttle traces, Lift & Coast (LiCO), open source license, and non-commercial status.",
+				"Answers to common questions about FullThrottle: OpenF1 and FastF1 data sources, how to read speed and throttle traces, Lift & Coast (LiCO), open source license, and non-commercial status.",
 			changefreq: "monthly",
 			priority: "0.6",
 			items: [
 				{
 					question: "Where does the data come from?",
 					answer:
-						"All data is sourced from FastF1, which pulls timing and telemetry data from live timing feeds and historical archives.",
+						"Recent sessions come from OpenF1, a free, community-run API for Formula 1 timing and telemetry, used under CC BY-NC-SA 4.0. Earlier sessions were built with FastF1, the open-source Python library for F1's live timing feeds.",
 				},
 				{
 					question: "How do I use the telemetry charts?",
