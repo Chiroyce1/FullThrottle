@@ -167,6 +167,33 @@ class TestOpenF1Pipeline(unittest.TestCase):
         self.assertGreater(df.iloc[-1]["distance"], df.iloc[0]["distance"])
         self.assertGreater(df.iloc[-1]["distance"], 0.0)
 
+    def test_samples_before_first_lap_are_lap_zero(self):
+        """
+        OpenF1 sends telemetry from before lap 1 starts (out-laps, the grid,
+        the formation lap). Those samples belong to no lap: 0, not lap 1.
+        """
+        session_start = datetime(2026, 10, 25, 19, 0, 0, tzinfo=timezone.utc)
+        times = ["00.000", "00.250", "00.500"]
+        car_data = [
+            {"date": f"2026-10-25T19:00:{t}Z", "speed": 100, "rpm": 10000, "n_gear": 3, "throttle": 50, "brake": 0, "drs": 0}
+            for t in times
+        ]
+        location_data = [{"date": f"2026-10-25T19:00:{t}Z", "x": 10.0, "y": 20.0, "z": 0.0} for t in times]
+        laps_df = pd.DataFrame([{"driver_number": 12, "lap_number": 1, "date_start": "2026-10-25T19:00:00.250Z"}])
+
+        df = build_driver_telemetry(
+            client=MockOpenF1Client(car_data=car_data, location_data=location_data),
+            session_key=9999,
+            driver={"driver_number": 12},
+            session_start=session_start,
+            laps_df=laps_df,
+            stints_df=pd.DataFrame(),
+            intervals_df=pd.DataFrame(),
+            pos_df=pd.DataFrame()
+        )
+
+        self.assertEqual(df["lap_number"].tolist(), [0, 1, 1])
+
 
 if __name__ == "__main__":
     unittest.main()

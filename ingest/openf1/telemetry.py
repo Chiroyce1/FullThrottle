@@ -198,6 +198,9 @@ def build_driver_telemetry(
                 on="date",
                 direction="backward"
             )
+            # Samples before the driver's first lap starts (out-laps, the grid,
+            # the formation lap) belong to no lap: 0, not lap 1.
+            df_merged["lap_number"] = df_merged["lap_number"].fillna(0)
         else:
             df_merged["lap_number"] = 1
             df_merged["stint"] = 1

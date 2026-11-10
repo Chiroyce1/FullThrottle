@@ -192,7 +192,7 @@ def ingest_session(
         if (diffs < -1.0).any():
             warnings.warn(f"Driver {driver_num} has non-monotonic distance decreases.")
         
-        lap_lens = d_df.groupby("lap_number")["distance"].apply(lambda s: s.max() - s.min())
+        lap_lens = d_df[d_df["lap_number"] > 0].groupby("lap_number")["distance"].apply(lambda s: s.max() - s.min())
         flying_laps = lap_lens[lap_lens > 1000]
         if len(flying_laps) > 0:
             median_lap_len = flying_laps.median()
