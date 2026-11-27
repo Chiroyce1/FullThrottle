@@ -2,10 +2,14 @@
 	import TrackMap from "$lib/components/TrackMap.svelte";
 	import { Toggle } from "$lib/components/app";
 	import type { ReplayView } from "$lib/replay/replay-view.svelte";
+	import type { Snippet } from "svelte";
 	import WeatherStrip from "./WeatherStrip.svelte";
 
-	/** Live track map with weather, map options and rotation. */
-	let { view }: { view: ReplayView } = $props();
+	/**
+	 * Live track map with weather, map options and rotation. `aside` sits
+	 * to the right of the map, in the room a wide panel leaves beside the track.
+	 */
+	let { view, aside }: { view: ReplayView; aside?: Snippet } = $props();
 </script>
 
 <div class="panel flex h-full min-h-0 flex-col overflow-hidden">
@@ -37,14 +41,21 @@
 			<span class="w-8 text-right font-mono text-foreground tabular-nums">{view.mapRotation}°</span>
 		</label>
 	</div>
-	<div class="relative min-h-0 flex-1">
-		<div class="absolute inset-0">
-			<TrackMap
-				trackPath={view.engine.trackPath}
-				activeDots={view.mapDots}
-				corners={view.visibleCorners}
-				bind:rotation={view.mapRotation}
-			/>
+	<div class="flex min-h-0 flex-1">
+		<div class="relative min-w-0 flex-1">
+			<div class="absolute inset-0">
+				<TrackMap
+					trackPath={view.engine.trackPath}
+					activeDots={view.mapDots}
+					corners={view.visibleCorners}
+					bind:rotation={view.mapRotation}
+				/>
+			</div>
 		</div>
+		{#if aside}
+			<div class="flex shrink-0 items-center p-4">
+				{@render aside()}
+			</div>
+		{/if}
 	</div>
 </div>

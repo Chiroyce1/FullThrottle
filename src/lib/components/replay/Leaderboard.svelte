@@ -34,8 +34,8 @@
 		isQualifying
 			? "grid-cols-[1.5rem_minmax(0,1fr)_2.5rem_4.5rem]"
 			: isRace
-				? "grid-cols-[1.5rem_minmax(0,1fr)_4rem_4rem_3.25rem] sm:grid-cols-[1.5rem_minmax(0,1fr)_3.75rem_3.75rem_4.5rem_8rem_3.25rem]"
-				: "grid-cols-[1.5rem_minmax(0,1fr)_4.5rem_3.25rem] sm:grid-cols-[1.75rem_minmax(0,1fr)_4.5rem_8rem_3.5rem]",
+				? "grid-cols-[1.5rem_minmax(0,1fr)_4rem_4rem_3.25rem] sm:grid-cols-[1.5rem_minmax(0,1fr)_3.75rem_3.75rem_4.5rem_9rem_3.25rem]"
+				: "grid-cols-[1.5rem_minmax(0,1fr)_4.5rem_3.25rem] sm:grid-cols-[1.75rem_minmax(0,1fr)_4.5rem_9rem_3.5rem]",
 	);
 
 	function position(entry: LeaderboardEntry, index: number) {
@@ -142,14 +142,14 @@
 					</span>
 
 					<span class="hidden flex-col items-end gap-0.5 sm:flex">
-						<span class="flex gap-0.5">
+						<span class="flex gap-1">
 							{#each [row._sector1_state, row._sector2_state, row._sector3_state] as st, i (i)}
-								<span class="h-1 w-10 rounded-full {sectorBar[st ?? 'none']}"></span>
+								<span class="h-1 w-11 rounded-full {sectorBar[st ?? 'none']}"></span>
 							{/each}
 						</span>
-						<span class="flex gap-0.5 font-mono text-2xs tabular-nums">
+						<span class="flex gap-1 font-mono text-2xs tabular-nums">
 							{#each [[row._sector1_state, row._sector1_time], [row._sector2_state, row._sector2_time], [row._sector3_state, row._sector3_time]] as [st, t], i (i)}
-								<span class="w-10 text-center {sectorText[(st as SectorStatus) ?? 'none']}">{formatSectorTime(t as number | null | undefined)}</span>
+								<span class="w-11 text-center {sectorText[(st as SectorStatus) ?? 'none']}">{formatSectorTime(t as number | null | undefined)}</span>
 							{/each}
 						</span>
 					</span>

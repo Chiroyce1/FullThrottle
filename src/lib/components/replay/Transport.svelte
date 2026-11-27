@@ -9,12 +9,12 @@
 	const engine = $derived(view.engine);
 </script>
 
-<div class="panel flex flex-col gap-3 p-3">
-	<div class="flex flex-wrap items-center gap-3">
+<div class="panel flex flex-col justify-center gap-5 p-4">
+	<div class="flex flex-wrap items-center gap-x-4 gap-y-3">
 		<button
 			type="button"
 			onclick={view.togglePlay}
-			class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-105 active:scale-95"
+			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition-transform hover:scale-105 active:scale-95"
 			title={view.isPlaying ? "Pause" : "Play"}
 			aria-label={view.isPlaying ? "Pause" : "Play"}
 		>
@@ -31,15 +31,15 @@
 
 		<TrackStatusBadge status={view.trackStatus} />
 
-		<span class="ml-auto font-mono text-xs text-muted-foreground tabular-nums">
+		<span class="ml-auto font-mono text-sm text-muted-foreground tabular-nums">
 			Lap {view.leaderLap}{#if engine.totalLaps}<span>/{engine.totalLaps}</span>{/if}
 		</span>
 
-		<label class="flex items-center gap-2 text-xs text-muted-foreground">
+		<label class="flex items-center gap-2 text-sm text-muted-foreground">
 			Speed
 			<select
 				bind:value={view.playbackSpeed}
-				class="h-8 cursor-pointer rounded-md border border-border bg-background px-2 font-mono text-sm text-foreground tabular-nums focus:ring-1 focus:ring-ring focus:outline-none"
+				class="h-9 cursor-pointer rounded-md border border-border bg-background px-2 font-mono text-sm text-foreground tabular-nums focus:ring-1 focus:ring-ring focus:outline-none"
 			>
 				{#each PLAYBACK_SPEEDS as s (s)}
 					<option value={s}>{s}×</option>
@@ -48,7 +48,7 @@
 		</label>
 	</div>
 
-	<div class="flex flex-col gap-1.5">
+	<div class="flex flex-col gap-2">
 		<input
 			type="range"
 			aria-label="Session time"

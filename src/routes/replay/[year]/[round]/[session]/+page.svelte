@@ -12,6 +12,8 @@
 	import Speedometer from "$lib/components/replay/Speedometer.svelte";
 	import Transport from "$lib/components/replay/Transport.svelte";
 	import { ReplayView } from "$lib/replay/replay-view.svelte";
+	import { settings } from "$lib/settings";
+	import { cn } from "$lib/utils";
 
 	let { data }: { data: PageData } = $props();
 
@@ -28,11 +30,24 @@
 	const DESKTOP = 1280;
 	let innerWidth = $state(DESKTOP);
 	const isDesktop = $derived(innerWidth >= DESKTOP);
+
+	let lapTracesOpen = $state(settings.lapTracesOpen);
+	$effect(() => {
+		settings.lapTracesOpen = lapTracesOpen;
+	});
 </script>
 
 <SEO replay={data?.sessionMeta} />
 
 <svelte:window bind:innerWidth />
+
+{#snippet mapSpeedometer()}
+	<Speedometer
+		telemetry={view.focusedTelemetry}
+		id={view.focusedDriver}
+		class="h-full max-h-60 w-auto max-w-none"
+	/>
+{/snippet}
 
 <div class="flex min-h-dvh flex-col bg-background text-foreground xl:h-dvh xl:overflow-hidden">
 	<AppHeader variant="compact">
@@ -52,39 +67,42 @@
 		{#if engine.isLoading}
 			<LoadingState label="Loading session…" class="panel" />
 		{:else if view.hasData}
-			<Transport {view} />
-
 			<!--
-				One layout for every size. DOM order is the narrow-screen order
-				(driver, map, lap traces, leaderboard). From xl: leaderboard down
-				the left, map in the middle, driver + speedometer on the right,
-				lap traces under both.
+				One layout for every size. DOM order is the narrow-screen order.
+				From xl: transport over the leaderboard (same column), driver over
+				the map, the speedometer inside the map panel beside the track,
+				lap traces under the map.
 			-->
-			<section
-				class="grid grid-cols-1 gap-3 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,36rem)_minmax(0,1fr)_19rem] xl:grid-rows-[minmax(0,1fr)_minmax(15rem,40%)]"
-			>
+			<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,36rem)_minmax(0,1fr)]">
+				<div class="grid sm:col-span-2 xl:col-span-1">
+					<Transport {view} />
+				</div>
 				{#if view.focusedDriver}
-					<div
-						class="grid gap-3 sm:grid-cols-2 xl:col-start-3 xl:row-start-1 xl:flex xl:min-h-0 xl:flex-col xl:overflow-y-auto"
-					>
-						<DriverPanel {view} />
-						<div class="panel flex items-center justify-center px-3 py-4 xl:flex-1">
+					<DriverPanel {view} />
+					{#if !isDesktop}
+						<div class="panel flex items-center justify-center p-4">
 							<Speedometer telemetry={view.focusedTelemetry} id={view.focusedDriver} />
 						</div>
-					</div>
+					{/if}
 				{/if}
+			</div>
 
-				<div class="aspect-square max-h-[70vh] w-full sm:aspect-video xl:col-start-2 xl:row-start-1 xl:aspect-auto xl:max-h-none xl:min-h-0">
-					<MapPanel {view} />
+			<section
+				class="grid grid-cols-1 gap-3 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,36rem)_minmax(0,1fr)]"
+			>
+				<div class="flex flex-col gap-3 xl:col-start-2 xl:row-start-1 xl:min-h-0">
+					<div class="aspect-square max-h-[70vh] w-full sm:aspect-video xl:aspect-auto xl:max-h-none xl:min-h-48 xl:flex-1">
+						<MapPanel {view} aside={isDesktop && view.focusedDriver ? mapSpeedometer : undefined} />
+					</div>
+
+					{#if view.focusedDriver}
+						<div class={cn("xl:min-h-0", lapTracesOpen && "xl:h-[min(20rem,45%)]")}>
+							<LapTraces {view} bind:open={lapTracesOpen} />
+						</div>
+					{/if}
 				</div>
 
-				{#if view.focusedDriver}
-					<div class="xl:col-span-2 xl:col-start-2 xl:row-start-2 xl:min-h-0">
-						<LapTraces {view} fill={isDesktop} />
-					</div>
-				{/if}
-
-				<div class="h-[70vh] min-h-0 xl:col-start-1 xl:row-span-2 xl:row-start-1 xl:h-auto">
+				<div class="h-[70vh] min-h-0 xl:col-start-1 xl:row-start-1 xl:h-auto">
 					<Leaderboard
 						drivers={view.leaderboard}
 						focusedDriver={view.focusedDriver}

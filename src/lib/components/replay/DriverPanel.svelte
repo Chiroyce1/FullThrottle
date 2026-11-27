@@ -32,14 +32,14 @@
 {/snippet}
 
 <div class="panel flex flex-col">
-	<div class="flex items-center gap-2.5 border-b border-border px-3 py-2.5">
+	<div class="flex items-center gap-2.5 border-b border-border px-3 py-2">
 		<span class="h-6 w-1 shrink-0 rounded-full" style="background-color: {color}"></span>
 		<span class="font-mono text-lg font-semibold text-foreground">{tla}</span>
 		<span class="truncate text-sm text-muted-foreground">{fullName}</span>
 		<span class="ml-auto font-mono text-xs text-muted-foreground">#{id}</span>
 	</div>
 
-	<div class="grid grid-cols-3 gap-x-3 gap-y-3 px-3 py-3">
+	<div class="grid grid-cols-3 gap-x-3 gap-y-2 px-3 py-2.5">
 		{@render stat("Position", position ? `P${position}` : "–")}
 		{@render stat("Lap", `${t?.lap_number || view.leaderLap}`)}
 		<div class="min-w-0">

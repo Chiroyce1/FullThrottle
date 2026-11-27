@@ -4,9 +4,14 @@
 	import { linear } from "svelte/easing";
 	import { settings } from "$lib/settings";
 	import type { TelemetryFrameRow } from "$lib/types";
+	import { cn } from "$lib/utils";
 
 	/** Speed arc with throttle/brake pedal arcs, gear and RPM. */
-	let { telemetry, id }: { telemetry: TelemetryFrameRow | undefined; id: string } = $props();
+	let {
+		telemetry,
+		id,
+		class: className,
+	}: { telemetry: TelemetryFrameRow | undefined; id: string; class?: string } = $props();
 
 	const speed = $derived(telemetry?.speed ?? 0);
 	const gear = $derived(telemetry?.n_gear ?? 0);
@@ -69,7 +74,7 @@
 		len - (len * Math.min(value, max)) / max;
 </script>
 
-<div class="relative mx-auto aspect-4/3 w-full max-w-[17rem]">
+<div class={cn("@container relative mx-auto aspect-4/3 w-full max-w-[17rem]", className)}>
 	<svg viewBox="0 0 160 120" class="absolute inset-0 h-full w-full overflow-visible" aria-hidden="true">
 		<path d={speedPath} fill="none" stroke="var(--border-strong)" stroke-width="10" />
 		<path
@@ -122,17 +127,17 @@
 	</svg>
 
 	<div class="absolute top-[68%] left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center">
-		<span class="font-mono text-5xl leading-none font-semibold tracking-tight text-foreground tabular-nums">
+		<span class="font-mono text-[17cqw] leading-none font-semibold tracking-tight text-foreground tabular-nums">
 			{Math.round(smoothSpeed.current)}
 		</span>
-		<span class="text-xs text-muted-foreground">km/h</span>
+		<span class="text-[max(10px,4.4cqw)] text-muted-foreground">km/h</span>
 		<span class="mt-1 flex items-baseline gap-1">
-			<span class="font-mono text-2xl leading-none font-semibold text-foreground tabular-nums"
+			<span class="font-mono text-[9cqw] leading-none font-semibold text-foreground tabular-nums"
 				>{gear === 0 ? "N" : gear === -1 ? "R" : gear || "N"}</span
 			>
-			<span class="text-xs text-muted-foreground">gear</span>
+			<span class="text-[max(10px,4.4cqw)] text-muted-foreground">gear</span>
 		</span>
-		<span class="mt-1 font-mono text-xs tabular-nums {smoothRpm.current > 11000 ? 'text-red-500' : 'text-muted-foreground'}">
+		<span class="mt-1 font-mono text-[max(10px,4.4cqw)] tabular-nums {smoothRpm.current > 11000 ? 'text-red-500' : 'text-muted-foreground'}">
 			{Math.round(smoothRpm.current)} rpm
 		</span>
 	</div>

@@ -72,7 +72,7 @@
     { label: "Throttle", unit: "%", y: (d) => d.throttle || 0, yDomain: [0, 100], lockY: true, lico: true, weight: 1.5, min: 64, compactMin: 32, fixed: 120 },
     { label: "Brake", unit: "%", y: (d) => (d.brake ? 100 : 0), yDomain: [0, 100], lockY: true, lico: true, weight: 0.8, min: 44, compactMin: 20, fixed: 90 },
     { label: "Gear", y: (d) => d.n_gear || 0, yDomain: [0, 8], lockY: true, weight: 1.1, min: 56, compactMin: 32, fixed: 110 },
-    { label: "RPM", y: (d) => d.rpm || 0, yDomain: [0, 15000], weight: 1.1, min: 56, compactMin: 32, fixed: 110 },
+    { label: "RPM", y: (d) => d.rpm || 0, yDomain: [3000, 14000], yTicks: [4000, 8000, 12000], weight: 1.1, min: 56, compactMin: 32, fixed: 110 },
   ];
 
   const channels = $derived(only ? allChannels.filter((c) => only.includes(c.label)) : allChannels);

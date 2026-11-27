@@ -32,6 +32,8 @@ export interface AppSettingsValues {
 	 * Applies to both the telemetry page and the replay page.
 	 */
 	licoThrottleSensitivity: number;
+	/** Whether the replay page shows the lap trace charts under the map */
+	lapTracesOpen: boolean;
 }
 
 const DEFAULTS: AppSettingsValues = {
@@ -40,6 +42,7 @@ const DEFAULTS: AppSettingsValues = {
 	brakeInterpolation: true,
 	dataFrequency: 8,
 	licoThrottleSensitivity: LICO_THROTTLE_THRESHOLD,
+	lapTracesOpen: false,
 };
 
 export const LICO_SENSITIVITY_OPTIONS = [3, 5, 10, 15, 20, 30, 50] as const;
@@ -112,6 +115,14 @@ class Settings {
 	}
 	set licoThrottleSensitivity(v: number) {
 		this._values.licoThrottleSensitivity = v;
+		this._save();
+	}
+
+	get lapTracesOpen(): boolean {
+		return this._values.lapTracesOpen;
+	}
+	set lapTracesOpen(v: boolean) {
+		this._values.lapTracesOpen = v;
 		this._save();
 	}
 
