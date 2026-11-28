@@ -666,6 +666,24 @@
                     "location": "Las Vegas",
                     "circuit": "Las Vegas Strip Street Circuit",
                     "date": "2026-11-20"
+                },
+                {
+                    "round": 22,
+                    "name": "Qatar Grand Prix",
+                    "sessions": [
+                        {
+                            "code": "fp1",
+                            "label": "Practice 1"
+                        },
+                        {
+                            "code": "fp2",
+                            "label": "Practice 2"
+                        }
+                    ],
+                    "country": "Qatar",
+                    "location": "Lusail",
+                    "circuit": "Lusail International Circuit",
+                    "date": "2026-11-27"
                 }
             ]
         },
